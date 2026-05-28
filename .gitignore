@@ -1,0 +1,23 @@
+# Gradle
+.gradle/
+build/
+local.properties
+gradle/wrapper/gradle-wrapper.jar
+!gradle-wrapper.properties
+
+# Kotlin/Native
+.kotlin/
+
+# Xcode / SwiftPM
+.build/
+*.xcuserstate
+*.xcuserdatad/
+xcuserdata/
+DerivedData/
+.swiftpm/
+
+# macOS
+.DS_Store
+
+# Runtime
+*.log
