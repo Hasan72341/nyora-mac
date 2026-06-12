@@ -23,17 +23,24 @@ struct WelcomeView: View {
                             .frame(width: 120, height: 120)
                             .blur(radius: 24)
                         
-                        Image(nsImage: NSApplication.shared.applicationIconImage)
+                        Image("NyoraLogo", bundle: .module)
                             .resizable()
                             .frame(width: 92, height: 92)
+                            .clipShape(Circle())
                             .shadow(color: Color.appAccent.opacity(0.4), radius: 16, y: 8)
                     }
                     .scaleEffect(appearing ? 1 : 0.7)
                     .opacity(appearing ? 1 : 0)
                     
-                    VStack(spacing: 8) {
-                        Text("Welcome to Nyora")
-                            .font(.system(size: 42, weight: .black, design: .rounded))
+                    VStack(spacing: 12) {
+                        Text("破壊 · Manga, anywhere the night takes you")
+                            .font(.system(size: 12, weight: .semibold))
+                            .tracking(2)
+                            .foregroundStyle(Color.appAccent)
+
+                        Text("Read like the world can wait.")
+                            .font(.system(size: 36, weight: .black, design: .rounded))
+                            .multilineTextAlignment(.center)
                             .foregroundStyle(
                                 LinearGradient(
                                     colors: [.primary, .primary.opacity(0.8)],
@@ -41,10 +48,13 @@ struct WelcomeView: View {
                                     endPoint: .bottom
                                 )
                             )
-                        
-                        Text("The ultimate cross-platform manga reader")
-                            .font(.title3.weight(.medium))
+
+                        Text("Nyora pulls hundreds of sources into one quiet shelf and remembers exactly where you stopped — on your phone, your tablet, your desk. Sign in to sync and back it up, or just start reading.")
+                            .font(.callout)
+                            .multilineTextAlignment(.center)
                             .foregroundStyle(.secondary)
+                            .frame(maxWidth: 400)
+                            .fixedSize(horizontal: false, vertical: true)
                     }
                     .offset(y: appearing ? 0 : 24)
                     .opacity(appearing ? 1 : 0)
@@ -62,29 +72,23 @@ struct WelcomeView: View {
                             if appState.isSupabaseSigningIn {
                                 ProgressView()
                                     .controlSize(.small)
-                                    .brightness(1)
                             } else {
-                                Image(systemName: "g.circle.fill")
-                                    .font(.title2)
+                                Image("GoogleG", bundle: .module)
+                                    .resizable()
+                                    .frame(width: 20, height: 20)
                             }
                             Text("Sign in with Google")
                                 .font(.headline.weight(.bold))
                         }
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 14)
-                        .background(
-                            LinearGradient(
-                                colors: [Color.appAccent, Color.appAccent.opacity(0.85)],
-                                startPoint: .top,
-                                endPoint: .bottom
-                            )
-                        )
-                        .foregroundStyle(.white)
+                        .background(Color.white)
+                        .foregroundStyle(Color(white: 0.13))
                         .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-                        .shadow(color: Color.appAccent.opacity(0.4), radius: 10, y: 5)
+                        .shadow(color: .black.opacity(0.18), radius: 10, y: 5)
                         .overlay {
                             RoundedRectangle(cornerRadius: 14, style: .continuous)
-                                .strokeBorder(.white.opacity(0.2), lineWidth: 1)
+                                .strokeBorder(.black.opacity(0.08), lineWidth: 1)
                         }
                     }
                     .buttonStyle(.plain)

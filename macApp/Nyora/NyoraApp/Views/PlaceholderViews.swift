@@ -699,11 +699,11 @@ struct SuggestionsView: View {
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
             } else if let error {
-                EmptyStateView(icon: "sparkles",
+                EmptyStateView(icon: "books.vertical",
                                title: "Unable to load suggestions",
                                message: error)
             } else if entries.isEmpty {
-                EmptyStateView(icon: "sparkles",
+                EmptyStateView(icon: "books.vertical",
                                title: "No suggestions yet",
                                message: "Favourite a manga to see related titles from the same source.")
             } else {
@@ -2777,7 +2777,7 @@ struct SettingsView: View {
 
                         rowSeparator
 
-                        buttonRow("Sign in with Google", systemImage: "person.crop.circle.badge.plus") {
+                        buttonRow("Sign in with Google", systemImage: "person.crop.circle.badge.plus", assetImage: "GoogleG") {
                             guard !appState.isSupabaseSigningIn else { return }
                             signInWithGoogle(status: status)
                         }
@@ -3093,9 +3093,10 @@ struct SettingsView: View {
 
     private func buttonRow(_ title: String,
                             systemImage: String,
+                            assetImage: String? = nil,
                             tint: Color = .appAccent,
                             action: @escaping () -> Void) -> some View {
-        SettingsButtonRow(title: title, systemImage: systemImage, tint: tint, action: action)
+        SettingsButtonRow(title: title, systemImage: systemImage, assetImage: assetImage, tint: tint, action: action)
     }
 
     private func infoRow(_ title: String, value: String) -> some View {
@@ -3152,6 +3153,7 @@ struct SettingsView: View {
 private struct SettingsButtonRow: View {
     let title: String
     let systemImage: String
+    var assetImage: String? = nil
     let tint: Color
     let action: () -> Void
     @State private var isHovered = false
@@ -3159,8 +3161,16 @@ private struct SettingsButtonRow: View {
     var body: some View {
         VStack(spacing: 0) {
             HStack(spacing: 12) {
-                Label(title, systemImage: systemImage)
-                    .foregroundStyle(tint)
+                Label {
+                    Text(title)
+                } icon: {
+                    if let assetImage {
+                        Image(assetImage, bundle: .module).resizable().frame(width: 16, height: 16)
+                    } else {
+                        Image(systemName: systemImage)
+                    }
+                }
+                .foregroundStyle(tint)
                 Spacer()
                 Image(systemName: "chevron.right")
                     .font(.caption)
