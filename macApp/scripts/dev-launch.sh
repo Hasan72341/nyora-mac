@@ -51,6 +51,12 @@ if [ -d "$BUILD/Nyora_NyoraApp.bundle" ]; then
   cp -R "$BUILD/Nyora_NyoraApp.bundle" "$APP/Contents/Resources/"
 fi
 
+# Logo PNGs loaded via Bundle.main (see Image.bundleResource) — SPM ships a raw
+# Assets.xcassets here and Bundle.module is unreliable in a relocated bundle.
+ASSETS="$ROOT/Nyora/NyoraApp/Assets.xcassets"
+cp -f "$ASSETS/NyoraLogo.imageset/nyora_logo.png" "$APP/Contents/Resources/NyoraLogo.png" 2>/dev/null || true
+cp -f "$ASSETS/GoogleG.imageset/google_g.png" "$APP/Contents/Resources/GoogleG.png" 2>/dev/null || true
+
 # MLX needs `mlx-swift_Cmlx.bundle/Contents/Resources/default.metallib` next
 # to the binary at runtime — but `swift build` (CLI) cannot compile Metal
 # shaders, so we generate the metallib ONCE via xcodebuild and cache it.

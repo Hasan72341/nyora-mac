@@ -3181,7 +3181,7 @@ private struct SettingsButtonRow: View {
                     Text(title)
                 } icon: {
                     if let assetImage {
-                        Image(assetImage, bundle: .module).resizable().frame(width: 16, height: 16)
+                        Image(bundleResource: assetImage).resizable().frame(width: 16, height: 16)
                     } else {
                         Image(systemName: systemImage)
                     }
