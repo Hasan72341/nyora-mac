@@ -1,16 +1,4 @@
 {
-  "images" : [
-    {
-      "filename" : "google_g.pdf",
-      "idiom" : "universal"
-    }
-  ],
-  "info" : {
-    "author" : "xcode",
-    "version" : 1
-  },
-  "properties" : {
-    "preserves-vector-representation" : true,
-    "template-rendering-intent" : "original"
-  }
+  "images" : [ { "filename" : "google_g.png", "idiom" : "universal" } ],
+  "info" : { "author" : "xcode", "version" : 1 }
 }

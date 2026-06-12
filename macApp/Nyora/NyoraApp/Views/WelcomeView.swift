@@ -23,7 +23,7 @@ struct WelcomeView: View {
                             .frame(width: 120, height: 120)
                             .blur(radius: 24)
                         
-                        Image("NyoraLogo", bundle: .module)
+                        Image(bundleResource: "NyoraLogo")
                             .resizable()
                             .frame(width: 92, height: 92)
                             .clipShape(Circle())
@@ -73,7 +73,7 @@ struct WelcomeView: View {
                                 ProgressView()
                                     .controlSize(.small)
                             } else {
-                                Image("GoogleG", bundle: .module)
+                                Image(bundleResource: "GoogleG")
                                     .resizable()
                                     .frame(width: 20, height: 20)
                             }

@@ -116,6 +116,19 @@ assemble_app() {
     echo "  Copying bundled JRE…"
     cp -R "$JRE_CACHE" "$APP_BUNDLE/Contents/Resources/jre"
 
+    # SPM dependency resource bundles (GoogleSignIn UI / localized strings, etc.).
+    for b in "$NYORA_MAC/macApp/.build/$SWIFT_TRIPLE/release/"*.bundle; do
+        [ -d "$b" ] && cp -R "$b" "$APP_BUNDLE/Contents/Resources/"
+    done
+
+    # Logo PNGs loaded via Bundle.main (see Image.bundleResource): SwiftPM here ships
+    # a RAW Assets.xcassets (never compiled to Assets.car) and Bundle.module is broken
+    # in the relocated .app, so the logos are shipped as loose files.
+    cp "$NYORA_MAC/macApp/Nyora/NyoraApp/Assets.xcassets/NyoraLogo.imageset/nyora_logo.png" \
+       "$APP_BUNDLE/Contents/Resources/NyoraLogo.png"
+    cp "$NYORA_MAC/macApp/Nyora/NyoraApp/Assets.xcassets/GoogleG.imageset/google_g.png" \
+       "$APP_BUNDLE/Contents/Resources/GoogleG.png"
+
     echo "✓ Nyora.app assembled ($(du -sh "$APP_BUNDLE" | cut -f1))"
 }
 
