@@ -1331,10 +1331,6 @@ private struct MangaDetailView: View {
                     let rating = details.manga.rating
                     if rating > 0 {
                         HStack(spacing: 4) {
-                            Image(systemName: "star.fill")
-                                .font(.caption2.weight(.heavy))
-                                .foregroundStyle(.yellow)
-                                .shadow(color: .yellow.opacity(0.75), radius: 4)
                             Text(String(format: "%.1f", rating))
                                 .font(.caption.bold())
                                 .foregroundStyle(.primary)
