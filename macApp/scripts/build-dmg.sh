@@ -104,6 +104,10 @@ assemble_app() {
     cp "$NYORA_MAC/macApp/Nyora/SupportingFiles/Info.plist" \
        "$APP_BUNDLE/Contents/Info.plist"
 
+    # App icon (Info.plist's CFBundleIconFile points to "AppIcon")
+    cp "$NYORA_MAC/macApp/Nyora/SupportingFiles/AppIcon.icns" \
+       "$APP_BUNDLE/Contents/Resources/AppIcon.icns"
+
     # Helper JAR
     cp "$NYORA_MAC/shared/build/libs/nyora-helper.jar" \
        "$APP_BUNDLE/Contents/Resources/nyora-helper.jar"
@@ -119,17 +123,31 @@ assemble_app() {
 create_dmg() {
     echo "→ Creating DMG…"
     rm -f "$DMG_OUT"
+    # create-dmg adds its own Applications drop-link, so staging holds only the app.
+    rm -f "$STAGING/Applications"
 
-    # Symlink so the installer window shows an Applications shortcut.
-    ln -sfn /Applications "$STAGING/Applications"
+    if ! command -v create-dmg >/dev/null 2>&1; then
+        echo "ERROR: create-dmg not found — install it with: brew install create-dmg" >&2
+        exit 1
+    fi
 
-    hdiutil create \
-        -srcfolder "$STAGING" \
-        -volname "Nyora" \
-        -fs HFS+ \
-        -format UDZO \
-        -imagekey zlib-level=9 \
-        -o "$DMG_OUT"
+    # Detach any stale Nyora volume so create-dmg can mount cleanly.
+    hdiutil detach "/Volumes/Nyora" -force >/dev/null 2>&1 || true
+
+    local icns="$NYORA_MAC/macApp/Nyora/SupportingFiles/AppIcon.icns"
+    create-dmg \
+        --volname "Nyora" \
+        --volicon "$icns" \
+        --background "$SCRIPT_DIR/dmg-background.tiff" \
+        --window-pos 200 120 \
+        --window-size 640 420 \
+        --icon-size 128 \
+        --icon "Nyora.app" 160 210 \
+        --hide-extension "Nyora.app" \
+        --app-drop-link 480 210 \
+        --no-internet-enable \
+        "$DMG_OUT" \
+        "$STAGING"
 
     echo "✓ DMG created: $DMG_OUT ($(du -sh "$DMG_OUT" | cut -f1))"
 }
