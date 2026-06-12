@@ -2695,7 +2695,7 @@ struct SettingsView: View {
                 toggleRow("Disable connectivity check", description: "Skip the reachability ping before each request.", isOn: $appState.readerPrefs.noOffline)
             }
             settingGroup("Identity") {
-                infoRow("User-Agent", value: "Nyora/0.1.0 (macOS)")
+                infoRow("User-Agent", value: "Nyora/1.0 (macOS)")
             }
         }
     }
@@ -2904,7 +2904,7 @@ struct SettingsView: View {
                 buttonRow("Wipe database", systemImage: "trash.fill", tint: .red) {
                     Task { @MainActor in await appState.clearDatabase() }
                 }
-                Text("Permanently removes every manga, category, favourite, and history row. The 963 source registrations are reseeded on next launch.")
+                Text("Permanently removes every manga, category, favourite, and history row. Sources are reseeded on next launch.")
                     .font(.caption).foregroundStyle(.secondary)
                     .padding(.horizontal, 14).padding(.bottom, 10)
             }
@@ -2914,7 +2914,7 @@ struct SettingsView: View {
     private var aboutSection: some View {
         VStack(spacing: 12) {
             settingGroup("App") {
-                infoRow("Version", value: "0.1.0")
+                infoRow("Version", value: "1.0")
                 infoRow("Build", value: "Nyora for macOS")
                 infoRow("Min macOS", value: "14.0")
             }
@@ -2927,6 +2927,22 @@ struct SettingsView: View {
                 Text("Built on top of the open-source nyora-parsers library for source connectivity. Reader UX inspired by Nyora Android.")
                     .font(.caption).foregroundStyle(.secondary)
                     .padding(14)
+            }
+            settingGroup("Developer") {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Md Hasan Raza").font(.system(size: 13, weight: .semibold))
+                    Text("Creator of Nyora").font(.caption).foregroundStyle(.secondary)
+                    HStack(spacing: 18) {
+                        Link("Instagram", destination: URL(string: "https://www.instagram.com/md_hasan_raza____?igsh=MXZ6eTk2Y3FsNGs3aQ==")!)
+                        Link("LinkedIn", destination: URL(string: "https://www.linkedin.com/in/md-hasan-raza-8817372a7/")!)
+                        Link("GitHub", destination: URL(string: "https://github.com/Hasan72341")!)
+                        Link("Email", destination: URL(string: "mailto:hasanraza96@outlook.com")!)
+                    }
+                    .font(.caption)
+                    .padding(.top, 2)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(14)
             }
         }
     }
