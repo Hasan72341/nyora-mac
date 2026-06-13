@@ -1,56 +1,82 @@
-# Nyora for Mac
+<div align="center">
 
-A native **macOS** build of the Nyora manga reader — a SwiftUI front end over the
-shared Kotatsu engine (run as a bundled JVM helper). Ships as a `.dmg` with its own
-Java runtime bundled, so there's nothing else to install.
+<img src="https://nyora.pages.dev/icon.png" width="112" alt="Nyora"/>
 
-> **Download:** grab `Nyora.dmg` from the [Releases page](https://github.com/Hasan72341/nyora-mac/releases/latest) (Apple Silicon & Intel). Open the DMG and drag **Nyora** to Applications; on first launch right-click → **Open** to bypass Gatekeeper for the unsigned build.
+# Nyora — macOS
 
-## Features
+### Read like the world can wait.
 
-### Sources & reading
-- **Huge source catalogue** — browse, search and filter hundreds of online manga/manhwa/manhua sources, powered by the shared Kotatsu parser engine.
-- **Standard & Webtoon reader** — paged (LTR/RTL) and vertical webtoon modes, zoom, double-page spreads and per-title settings.
-- **AI page translation** — translate a whole page at once: Apple **Vision** OCR (with a rotated-ensemble pass that handles vertical Japanese / tategaki) plus a bundled **MangaOCR** CoreML model detect the text, which is then translated and typeset back over the art. Includes a side-by-side translation sheet (⌘T).
-- **Dynamic colour correction** — adjust brightness, contrast and colour filters live while reading.
+A native **macOS** manga reader built from scratch in **SwiftUI** — hundreds of online sources, on-device AI page translation, and a `.dmg` with a bundled Java runtime. Install via Homebrew or drag-and-drop.
 
-### Library, tracking & sync
-- **Favourites in custom categories**, **reading history**, resume-where-you-left-off, and **incognito** mode.
-- **Offline downloads** — download chapters for offline reading.
-- **Tracker integration** — sync reading progress with online trackers.
-- **Cloud sync** — sign in with Google (loopback OAuth) and your library, favourites, categories, history and progress sync across all your Nyora devices (Supabase backend).
-- **Themes** — light / dark / system.
+[![License: Apache 2.0](https://img.shields.io/github/license/Hasan72341/nyora-mac?color=blue)](LICENSE)
+[![Latest release](https://img.shields.io/github/v/release/Hasan72341/nyora-mac?label=download&color=0ae448)](https://github.com/Hasan72341/nyora-mac/releases/latest)
+[![Downloads](https://img.shields.io/github/downloads/Hasan72341/nyora-mac/total?color=9d95ff)](https://github.com/Hasan72341/nyora-mac/releases)
+[![Stars](https://img.shields.io/github/stars/Hasan72341/nyora-mac?style=social)](https://github.com/Hasan72341/nyora-mac/stargazers)
 
-## Architecture
+**[⬇️ Download .dmg](https://github.com/Hasan72341/nyora-mac/releases/latest)** · **[🌐 nyora.pages.dev](https://nyora.pages.dev)**
 
+</div>
+
+---
+
+## ✨ Features
+
+- 📚 **Hundreds of online sources** — browse, search & filter manga, manhwa & manhua.
+- 🌐 **AI page translation** — Apple **Vision** OCR (with a rotated-ensemble pass that handles vertical Japanese / tategaki) + a bundled **MangaOCR** model detect the text, which is translated and typeset back over the art (⌘T for a side-by-side sheet).
+- 📖 **Standard & Webtoon reader** — LTR / RTL / vertical, zoom, double-page, per-title settings.
+- 🎨 **Dynamic colour correction** while reading.
+- 🗂️ Favourites in custom categories, history, resume, **incognito**, offline downloads.
+- 🔄 **Tracker integration** + ☁️ **cloud sync** (sign in with Google; library & progress sync across devices).
+- 🌗 Light / dark / system themes.
+
+## ⬇️ Install
+
+**Homebrew** (easiest — no Gatekeeper prompt):
+
+```bash
+brew tap Hasan72341/nyora
+brew trust hasan72341/nyora
+brew install --cask --no-quarantine nyora
 ```
-nyora-mac/
-├── shared/        # thin :shared Gradle module — compiles the nyora-shared engine (submodule) for the JVM
-├── nyora-shared/  # the shared Kotatsu engine (git submodule)
-└── macApp/        # SwiftUI app (Nyora/NyoraApp) + build scripts
-```
 
-The SwiftUI app launches a small **JVM helper** (`nyora-helper.jar`) that owns the
-parser runtime + a loopback REST API; the app talks to it over localhost. The
-packaged `.app` bundles a Temurin JRE so end users need no Java.
+**Or** download `Nyora.dmg` from the **[Releases page](https://github.com/Hasan72341/nyora-mac/releases/latest)** and drag **Nyora** to Applications. The app is ad-hoc signed (not notarised), so allow it once: right-click → **Open** (or Settings → Privacy & Security → **Open Anyway** on Sequoia). **Apple Silicon only.**
 
-## Build from source
+## 🛠️ Build from source
 
-Requires **Xcode**, **JDK 17** and the `nyora-shared` submodule.
+Requires **Xcode**, **JDK 17**, and the `nyora-shared` submodule.
 
 ```bash
 git clone --recurse-submodules https://github.com/Hasan72341/nyora-mac.git
 cd nyora-mac
-
-# dev: build + wrap + launch the app
-./macApp/scripts/dev-launch.sh
-
-# release: assemble Nyora.app (bundled JRE) and a branded .dmg
-./macApp/scripts/build-dmg.sh         # → build/Nyora.dmg
+./macApp/scripts/dev-launch.sh    # dev run
+./macApp/scripts/build-dmg.sh     # → build/Nyora.dmg (ad-hoc signed, bundled JRE)
 ```
 
-## Author & license
+## 🧩 Nyora on every platform
 
-Developed and maintained by **Md Hasan Raza** — [GitHub](https://github.com/Hasan72341) · [Instagram](https://instagram.com/md_hasan_raza____) · [LinkedIn](https://www.linkedin.com/in/md-hasan-raza) · hasanraza96@outlook.com
+| Platform | Repo | Get it |
+|---|---|---|
+| 🍎 macOS | **nyora-mac** *(you are here)* | [.dmg / `brew`](https://github.com/Hasan72341/nyora-mac/releases/latest) |
+| 🤖 Android | [nyora-android](https://github.com/Hasan72341/nyora-android) | [APK](https://github.com/Hasan72341/nyora-android/releases/latest) |
+| 🪟 Windows | [nyora-windows](https://github.com/Hasan72341/nyora-windows) | [.exe (x64/ARM64)](https://github.com/Hasan72341/nyora-windows/releases/latest) |
+| 🐧 Linux | [nyora-linux](https://github.com/Hasan72341/nyora-linux) | [deb · rpm · curl](https://github.com/Hasan72341/nyora-linux/releases/latest) |
+| 📱 iOS / iPadOS | [nyora-ios](https://github.com/Hasan72341/nyora-ios) | [sideload IPA](https://github.com/Hasan72341/nyora-ios/releases/latest) |
+| 🌍 Web | — | [nyoraweb.pages.dev](https://nyoraweb.pages.dev) |
 
-Licensed under the **GNU General Public License v3.0**. Nyora is a fork of [Kotatsu](https://github.com/KotatsuApp/Kotatsu) and is not affiliated with any of the manga sources it can access.
+## 🏗️ Tech
+
+**SwiftUI** front end · a shared Kotlin engine (`nyora-shared`) run as a bundled JVM helper over a loopback REST API · Apple Vision + CoreML for OCR.
+
+## 🤝 Contributing
+
+Issues & PRs welcome. ⭐ **Star the repo** if you like Nyora!
+
+## 📄 License
+
+Licensed under the **Apache License 2.0** (see [`LICENSE`](LICENSE)). Original code, built from scratch — source-compatible with Tachiyomi/Kotatsu-style sources but not a fork.
+
+## 🙏 Credits
+
+Developed & maintained by **Md Hasan Raza** — [GitHub](https://github.com/Hasan72341) · [Instagram](https://instagram.com/md_hasan_raza____) · [LinkedIn](https://www.linkedin.com/in/md-hasan-raza) · hasanraza96@outlook.com
+
+> Nyora is not affiliated with any of the manga sources it can access.
