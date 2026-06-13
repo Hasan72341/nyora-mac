@@ -132,6 +132,37 @@ assemble_app() {
     echo "✓ Nyora.app assembled ($(du -sh "$APP_BUNDLE" | cut -f1))"
 }
 
+# ── Step 4.5: Ad-hoc code-sign the bundle ─────────────────────────────────────
+# An unsigned arm64 .app shows "Nyora is damaged and can't be opened" even after
+# the user clears quarantine. Ad-hoc signing (deep) seals the whole bundle so it
+# launches once allowed through Gatekeeper. The entitlements keep MLX's Metal JIT
+# working under an ad-hoc signature. This is NOT Developer-ID/notarised — users
+# still allow it once (right-click → Open / "Open Anyway" / clear quarantine).
+sign_app() {
+    echo "→ Ad-hoc code-signing Nyora.app…"
+    local ent
+    ent="$(mktemp)"
+    cat > "$ent" <<'PLIST'
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>com.apple.security.cs.allow-jit</key>                        <true/>
+    <key>com.apple.security.cs.allow-unsigned-executable-memory</key> <true/>
+    <key>com.apple.security.cs.disable-library-validation</key>       <true/>
+    <key>com.apple.security.cs.allow-dyld-environment-variables</key> <true/>
+</dict>
+</plist>
+PLIST
+    codesign --force --deep --sign - --entitlements "$ent" "$APP_BUNDLE"
+    rm -f "$ent"
+    if codesign --verify --deep --strict "$APP_BUNDLE" >/dev/null 2>&1; then
+        echo "✓ Ad-hoc signed (codesign --verify passed)"
+    else
+        echo "⚠ codesign --verify reported issues (app should still run after the user allows it once)"
+    fi
+}
+
 # ── Step 5: Create the DMG ────────────────────────────────────────────────────
 create_dmg() {
     echo "→ Creating DMG…"
@@ -172,6 +203,7 @@ download_jre
 build_jar
 build_swift
 assemble_app
+sign_app
 create_dmg
 
 echo ""
