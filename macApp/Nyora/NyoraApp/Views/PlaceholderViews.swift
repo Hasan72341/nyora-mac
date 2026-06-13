@@ -2923,6 +2923,15 @@ struct SettingsView: View {
                 infoRow("MT",  value: "Google Translate")
                 infoRow("Refinement", value: "Apple Intelligence + BYOK LLM")
             }
+            settingGroup("Links") {
+                HStack {
+                    Link("Official website", destination: URL(string: "https://nyora.pages.dev")!)
+                    Spacer()
+                    Text("nyora.pages.dev").font(.caption).foregroundStyle(.secondary)
+                }
+                .font(.system(size: 13))
+                .padding(14)
+            }
             settingGroup("Credits") {
                 Text("Built on top of the open-source nyora-parsers library for source connectivity. Reader UX inspired by Nyora Android.")
                     .font(.caption).foregroundStyle(.secondary)
