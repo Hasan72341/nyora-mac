@@ -2931,6 +2931,13 @@ struct SettingsView: View {
                 }
                 .font(.system(size: 13))
                 .padding(14)
+                HStack {
+                    Link("Source code", destination: URL(string: "https://github.com/Hasan72341/nyora-mac")!)
+                    Spacer()
+                    Text("Hasan72341/nyora-mac").font(.caption).foregroundStyle(.secondary)
+                }
+                .font(.system(size: 13))
+                .padding(14)
             }
             settingGroup("Credits") {
                 Text("Built on top of the open-source nyora-parsers library for source connectivity. Reader UX inspired by Nyora Android.")
@@ -2953,6 +2960,11 @@ struct SettingsView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(14)
             }
+            Text("Nyora — your manga library, everywhere. Available on Android, Windows, macOS, Linux, iOS and the web.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 4)
         }
     }
 
