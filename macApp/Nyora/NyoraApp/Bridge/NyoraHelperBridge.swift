@@ -270,6 +270,19 @@ actor NyoraHelperBridge {
         return response.entries.map { MangaSummary($0, sourceName: sourceId) }
     }
 
+    /// Per-source search that returns the raw `HelperManga` entries (not the
+    /// lossy `MangaSummary` projection). Used by the client-side incremental
+    /// global-search fan-out so each source's results can be published into a
+    /// `HelperGlobalSearchGroup` as soon as that source finishes, instead of
+    /// blocking on the all-or-nothing server `/search/global` endpoint.
+    /// Hits the same `/sources/search` endpoint `search(...)` uses.
+    func searchGroup(sourceId: String, query: String, page: Int) async throws -> [HelperManga] {
+        let response: HelperBrowseResponse = try await get(
+            "/sources/search?id=\(sourceId.urlEscaped)&q=\(query.urlEscaped)&page=\(page)"
+        )
+        return response.entries
+    }
+
     // MARK: Details + pages
 
     func details(sourceId: String, mangaUrl: String) async throws -> HelperDetailsResponse {

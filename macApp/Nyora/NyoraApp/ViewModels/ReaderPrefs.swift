@@ -8,12 +8,21 @@ final class ReaderPrefs: ObservableObject {
     private let ud = UserDefaults.standard
 
     init() {
+        // Fresh install: default accent is "wallpaper", so seed the wallpaper
+        // hex from the actual desktop wallpaper. Guarded on the absence of any
+        // stored accent keys so existing installs are left untouched.
+        if ud.string(forKey: Keys.accentColor) == nil,
+           ud.string(forKey: Keys.wallpaperAccentHex) == nil,
+           let hex = Self.extractWallpaperAccentHex() {
+            wallpaperAccentHex = hex
+        }
         // Resolve the saved accent into the live theme holder so the entire
         // UI (Color.appAccent) shows the chosen accent from launch.
         NyoraTheme.accent = Self.resolveAccent(
             mode: accentColor,
             customHex: customAccentHex,
-            wallpaperHex: wallpaperAccentHex
+            wallpaperHex: wallpaperAccentHex,
+            dark: Self.isDarkAppearance(appAppearance)
         )
     }
 
@@ -39,14 +48,18 @@ final class ReaderPrefs: ObservableObject {
 
     // MARK: - Appearance
     @Published var appAppearance: String = UserDefaults.standard.string(forKey: Keys.appAppearance) ?? "auto" {
-        didSet { ud.set(appAppearance, forKey: Keys.appAppearance) }
+        didSet {
+            ud.set(appAppearance, forKey: Keys.appAppearance)
+            // Re-resolve the active scheme so flipping light/dark picks the
+            // correct light/dark primary and updates NyoraTheme.accent live.
+            syncThemeAccent()
+        }
     }
-    @Published var amoledMode: Bool = UserDefaults.standard.bool(forKey: Keys.amoledMode) {
-        didSet { ud.set(amoledMode, forKey: Keys.amoledMode) }
-    }
-    /// Accent mode: a preset name ("red", "orange", …, "blue", "purple",
-    /// "pink"), "wallpaper", or "custom". Defaults to red.
-    @Published var accentColor: String = UserDefaults.standard.string(forKey: Keys.accentColor) ?? "red" {
+    /// Selected color scheme id — one of `colorSchemes` ("wallpaper" = Dynamic,
+    /// "totoro", "miku", …, "yuki"), or the legacy "custom" mode. Defaults to
+    /// "wallpaper" (the Dynamic / desktop-wallpaper-derived accent). Unknown
+    /// saved values fall back to Dynamic.
+    @Published var accentColor: String = UserDefaults.standard.string(forKey: Keys.accentColor) ?? "wallpaper" {
         didSet { ud.set(accentColor, forKey: Keys.accentColor); syncThemeAccent() }
     }
     /// Hex used when accentColor == "custom".
@@ -362,27 +375,85 @@ final class ReaderPrefs: ObservableObject {
         )
     }
 
-    // MARK: - Accent
+    // MARK: - Accent / Color scheme
 
-    /// Selectable preset accents (mode name → display colour).
-    static let accentPresets: [(name: String, color: Color)] = [
-        ("red", .red), ("orange", .orange), ("yellow", .yellow),
-        ("green", .green), ("mint", .mint), ("teal", .teal),
-        ("blue", .blue), ("purple", .purple), ("pink", .pink),
-    ]
-
-    var effectiveAccentColor: Color {
-        Self.resolveAccent(mode: accentColor, customHex: customAccentHex, wallpaperHex: wallpaperAccentHex)
+    /// One named color scheme, shared across every Nyora app (ported from
+    /// nyora-android). Each carries BOTH a light and a dark primary; the active
+    /// appearance (light/dark) selects which one becomes the Material accent.
+    /// `darkSecondary` drives the two secondary-tone bars on the preview cards.
+    struct ColorSchemeOption: Identifiable {
+        let id: String          // stable storage value (== accentColor)
+        let name: String        // display name
+        let lightPrimary: String
+        let darkPrimary: String
+        let darkSecondary: String
     }
 
-    /// Pure resolver used by both `effectiveAccentColor` and `init`.
-    static func resolveAccent(mode: String, customHex: String, wallpaperHex: String) -> Color {
-        switch mode {
-        case "custom":    return Color(hex: customHex) ?? .red
-        case "wallpaper": return Color(hex: wallpaperHex) ?? .red
+    /// Canonical scheme set in picker order. `wallpaper` (= Dynamic) is first
+    /// and the default; its primary comes from `wallpaperAccentHex`, not a
+    /// fixed hex, so the OS/desktop accent drives it.
+    static let colorSchemes: [ColorSchemeOption] = [
+        ColorSchemeOption(id: "wallpaper", name: "Dynamic", lightPrimary: "", darkPrimary: "", darkSecondary: ""),
+        ColorSchemeOption(id: "totoro", name: "Totoro", lightPrimary: "#3C6090", darkPrimary: "#A6C8FF", darkSecondary: "#BCC7DC"),
+        ColorSchemeOption(id: "miku",   name: "Miku",   lightPrimary: "#00696D", darkPrimary: "#6FDDE2", darkSecondary: "#A6CECF"),
+        ColorSchemeOption(id: "asuka",  name: "Asuka",  lightPrimary: "#904A40", darkPrimary: "#FFB4A8", darkSecondary: "#E7BDB6"),
+        ColorSchemeOption(id: "mion",   name: "Mion",   lightPrimary: "#3B693A", darkPrimary: "#A1D39A", darkSecondary: "#EEBF6D"),
+        ColorSchemeOption(id: "rikka",  name: "Rikka",  lightPrimary: "#68548D", darkPrimary: "#D3BBFD", darkSecondary: "#CDC2DB"),
+        ColorSchemeOption(id: "sakura", name: "Sakura", lightPrimary: "#8C4A60", darkPrimary: "#FFB1C8", darkSecondary: "#E3BDC6"),
+        ColorSchemeOption(id: "mamimi", name: "Mamimi", lightPrimary: "#465D91", darkPrimary: "#AFC6FF", darkSecondary: "#BFC6DC"),
+        ColorSchemeOption(id: "kanade", name: "Kanade", lightPrimary: "#353543", darkPrimary: "#FFFFFF", darkSecondary: "#DDDCDC"),
+        ColorSchemeOption(id: "itsuka", name: "Itsuka", lightPrimary: "#974800", darkPrimary: "#FFBA8F", darkSecondary: "#F7B993"),
+        ColorSchemeOption(id: "yuki",   name: "Yuki",   lightPrimary: "#43474A", darkPrimary: "#FFFFFF", darkSecondary: "#C6C6C9"),
+    ]
+
+    /// Whether the live UI is currently in dark appearance, honoring the
+    /// `appAppearance` override and falling back to the OS for "auto".
+    static func isDarkAppearance(_ appearance: String) -> Bool {
+        switch appearance {
+        case "dark":  return true
+        case "light": return false
         default:
-            return accentPresets.first { $0.name == mode }?.color ?? .red
+            let match = NSApplication.shared.effectiveAppearance
+                .bestMatch(from: [.darkAqua, .aqua])
+            return match == .darkAqua
         }
+    }
+
+    var effectiveAccentColor: Color {
+        Self.resolveAccent(
+            mode: accentColor,
+            customHex: customAccentHex,
+            wallpaperHex: wallpaperAccentHex,
+            dark: Self.isDarkAppearance(appAppearance)
+        )
+    }
+
+    /// Pure, appearance-aware resolver used by `effectiveAccentColor`, `init`,
+    /// and `syncThemeAccent`. Unknown ids fall back to the wallpaper/Dynamic
+    /// accent for backward compatibility.
+    static func resolveAccent(mode: String, customHex: String, wallpaperHex: String, dark: Bool) -> Color {
+        switch mode {
+        case "wallpaper": return Color(hex: wallpaperHex) ?? .red
+        // Retained so any user who previously saved a custom hex still resolves.
+        case "custom":    return Color(hex: customHex) ?? .red
+        default:
+            if let scheme = colorSchemes.first(where: { $0.id == mode }) {
+                let hex = dark ? scheme.darkPrimary : scheme.lightPrimary
+                return Color(hex: hex) ?? (Color(hex: wallpaperHex) ?? .red)
+            }
+            // Unknown saved value (e.g. an old preset name) → Dynamic.
+            return Color(hex: wallpaperHex) ?? .red
+        }
+    }
+
+    /// Primary hex for a given scheme id at the requested appearance, used by
+    /// the preview cards so each card renders with its OWN scheme primary
+    /// regardless of which one is currently selected. The Dynamic/`wallpaper`
+    /// card has no fixed hex — callers fall back to `wallpaperAccentHex`.
+    func primaryHex(for id: String, dark: Bool) -> String? {
+        guard let scheme = Self.colorSchemes.first(where: { $0.id == id }) else { return nil }
+        if id == "wallpaper" { return wallpaperAccentHex }
+        return dark ? scheme.darkPrimary : scheme.lightPrimary
     }
 
     private func syncThemeAccent() {
@@ -467,7 +538,6 @@ final class ReaderPrefs: ObservableObject {
         static let exitConfirm      = "nyora.app.exitConfirm"
         
         static let appAppearance    = "nyora.app.appearance"
-        static let amoledMode       = "nyora.app.amoled"
         static let accentColor      = "nyora.app.accentColor"
         static let customAccentHex  = "nyora.app.customAccentHex"
         static let wallpaperAccentHex = "nyora.app.wallpaperAccentHex"
