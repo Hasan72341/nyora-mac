@@ -113,8 +113,22 @@ struct PagedReaderV2: View {
         .focusable()
         .focused($focused)
         .focusEffectDisabled()
-        .onAppear { focused = true }
-        .onChange(of: appState.readerPageIndex) { _, _ in resetZoom() }
+        .onAppear {
+            focused = true
+            // Warm the next few pages on open so the first turns are instant.
+            Task.detached(priority: .background) { [appState, idx = appState.readerPageIndex] in
+                await appState.prefetchReaderPages(around: idx)
+            }
+        }
+        .onChange(of: appState.readerPageIndex) { _, newIndex in
+            resetZoom()
+            // Within-chapter prefetch: warm the next N pages as the user turns
+            // (covers goForward/goBack/jumpTo/seekbar — all mutate readerPageIndex).
+            // Background priority + fire-and-forget so it never stalls the turn.
+            Task.detached(priority: .background) { [appState] in
+                await appState.prefetchReaderPages(around: newIndex)
+            }
+        }
         // Keyboard nav — desktop-first
         .onKeyPress(.leftArrow)  { isRTL ? goForward(isDouble: isDouble) : goBack(isDouble: isDouble); return .handled }
         .onKeyPress(.rightArrow) { isRTL ? goBack(isDouble: isDouble) : goForward(isDouble: isDouble); return .handled }
@@ -436,6 +450,14 @@ struct WebtoonReaderV2: View {
                                         visiblePage = idx
                                         appState.readerPageIndex = idx
                                         debouncePersist()
+                                        // Symmetry with the paged reader: warm the
+                                        // next few pages ahead of the scroll. The
+                                        // LazyVStack already lazily loads near-visible
+                                        // rows; this just gets them into URLCache a
+                                        // little sooner. Background, fire-and-forget.
+                                        Task.detached(priority: .background) { [appState] in
+                                            await appState.prefetchReaderPages(around: idx)
+                                        }
                                     }
                                 }
                             }

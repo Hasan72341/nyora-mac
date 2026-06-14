@@ -261,6 +261,9 @@ final class AppState: ObservableObject {
     private var stageStartedAt: TimeInterval? = nil
     private var browseRequestToken = UUID()
     private var detailRequestToken = UUID()
+    /// Supersedes an in-flight global search when a newer query starts, so late
+    /// per-source results from a stale run never leak into the new result set.
+    private var globalSearchToken = UUID()
     private var cancellables = Set<AnyCancellable>()
 
     func bootstrap() async {
@@ -517,6 +520,39 @@ final class AppState: ObservableObject {
             }
         } catch {
             statusMessage = "Pages failed: \(error.localizedDescription)"
+        }
+    }
+
+    /// Warm `URLCache.shared` with the next few pages of the CURRENT chapter so
+    /// turning forward feels instant. The paged reader has no built-in look-ahead
+    /// (`AdjustedImageView` only fetches a page once it becomes current), so every
+    /// turn otherwise waits on a fresh download+decode.
+    ///
+    /// We GET pages `[index+1 ... index+ahead]` concurrently (bounded by `ahead`)
+    /// with `.returnCacheDataElseLoad`, so `AdjustedImageView.loadImage` later
+    /// finds them already cached. This only warms the cache — the display path is
+    /// untouched and still renders each page as soon as it decodes.
+    ///
+    /// Cheap and fire-and-forget: covers/page images go through the helper image
+    /// proxy (server-side Semaphore(48)), NOT the parser JS lock, so this never
+    /// contends with parser calls. Call off the main thread (see callers).
+    func prefetchReaderPages(around index: Int, ahead: Int = 3) async {
+        guard let pages = activeChapter?.pages, !pages.isEmpty, ahead > 0 else { return }
+        let lower = index + 1
+        let upper = min(index + ahead, pages.count - 1)
+        guard lower <= upper else { return }
+        let urls: [URL] = (lower...upper).compactMap { URL(string: pages[$0].url) }
+        guard !urls.isEmpty else { return }
+        let session = URLSession.shared
+        // Bounded fan-out: at most `ahead` (== urls.count here) concurrent GETs.
+        await withTaskGroup(of: Void.self) { group in
+            for url in urls {
+                group.addTask {
+                    var req = URLRequest(url: url)
+                    req.cachePolicy = .returnCacheDataElseLoad
+                    _ = try? await session.data(for: req)
+                }
+            }
         }
     }
 
@@ -1062,17 +1098,113 @@ final class AppState: ObservableObject {
 
     // MARK: - Global search
 
+    /// Incremental, client-driven global search.
+    ///
+    /// Previously this made ONE blocking call to `helper.globalSearch` (the
+    /// server `/search/global` endpoint), which fanned out across every
+    /// installed source and returned all groups at once — so the sheet showed
+    /// nothing until the slowest source finished.
+    ///
+    /// We now replicate the server's fan-out on the client and publish each
+    /// source's group into `globalSearchResults` the moment that source returns,
+    /// so `GlobalSearchSheet`'s `ForEach` renders cards source-by-source while
+    /// the rest are still in flight. The server semantics are matched exactly:
+    ///   - search ALL installed sources (server: `listSources().filter isInstalled`)
+    ///   - take the top `perSourceLimit` (6) entries per source
+    ///   - only surface sources that returned hits
+    ///   - per-source errors are captured into the group's `error` field
+    /// Bounded to a small number of in-flight source queries so we don't open
+    /// hundreds of sockets at once (mirrors the server-side Semaphore(48) intent;
+    /// the loopback helper still applies its own gate downstream).
+    ///
+    /// NOTE: `helper.globalSearch` (the all-at-once bridge method) is preserved
+    /// for any other caller — only `runGlobalSearch` stops using it.
+    ///
+    /// BEHAVIOUR PARITY: the server sorted non-empty groups by hit count
+    /// descending. We instead publish in completion order (fastest source
+    /// first) because incremental display is the whole point; the sheet keeps
+    /// its own ordering/animation. NSFW filtering is still re-applied by the
+    /// sheet's `visibleResults`, so we publish the unfiltered installed set here.
     func runGlobalSearch() async {
         let trimmed = globalSearchQuery.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
+
+        // Supersede any in-flight run: a newer query invalidates older results.
+        let token = UUID()
+        globalSearchToken = token
+
+        // Match the server's source set: all installed sources.
+        let installed = sources.filter { $0.isInstalled }
+        let perSourceLimit = 6
+        let maxInFlight = 8   // bound fan-out; do not open hundreds of sockets at once
+
+        globalSearchResults = []
         isGlobalSearching = true
-        defer { isGlobalSearching = false }
-        do {
-            let response = try await helper.globalSearch(query: trimmed)
-            globalSearchResults = response.groups
-        } catch {
-            statusMessage = "Global search failed: \(error.localizedDescription)"
+        guard !installed.isEmpty else { isGlobalSearching = false; return }
+
+        // Capture the bridge (an actor → Sendable) into a local so the child
+        // tasks don't reach back through the @MainActor `self` to read it.
+        let bridge = helper
+
+        // Each child task returns a finished group (or nil on stale/empty).
+        // bridge.searchGroup awaits off the main thread (URLSession); we only
+        // touch @MainActor state (globalSearchResults) here on the main actor,
+        // never holding any lock across an await.
+        await withTaskGroup(of: HelperGlobalSearchGroup?.self) { group in
+            var iterator = installed.makeIterator()
+            var launched = 0
+
+            // Builds one child task for a given source.
+            func makeTask(for src: SourceSummary) -> @Sendable () async -> HelperGlobalSearchGroup? {
+                let sourceId = src.id
+                let sourceName = src.name
+                return {
+                    do {
+                        let entries = try await bridge.searchGroup(
+                            sourceId: sourceId, query: trimmed, page: 1
+                        )
+                        guard !entries.isEmpty else { return nil }
+                        return HelperGlobalSearchGroup(
+                            sourceId: sourceId,
+                            sourceName: sourceName,
+                            entries: Array(entries.prefix(perSourceLimit)),
+                            error: nil
+                        )
+                    } catch {
+                        // Surface the failure in the group's error field (rendered
+                        // by GlobalSearchSheet) rather than dropping the source.
+                        return HelperGlobalSearchGroup(
+                            sourceId: sourceId,
+                            sourceName: sourceName,
+                            entries: [],
+                            error: error.localizedDescription
+                        )
+                    }
+                }
+            }
+
+            // Prime the window.
+            while launched < maxInFlight, let src = iterator.next() {
+                group.addTask(operation: makeTask(for: src))
+                launched += 1
+            }
+
+            // Drain results as they arrive, refilling the window so at most
+            // `maxInFlight` source queries run concurrently.
+            for await result in group {
+                // Drop late results from a superseded query.
+                guard globalSearchToken == token else { return }
+                if let result, !(result.entries.isEmpty && (result.error?.isEmpty ?? true)) {
+                    globalSearchResults.append(result)
+                }
+                if let next = iterator.next() {
+                    group.addTask(operation: makeTask(for: next))
+                }
+            }
         }
+
+        // Only clear the spinner if we're still the active query.
+        if globalSearchToken == token { isGlobalSearching = false }
     }
 
     // MARK: - Translation state helpers (consumed by reader views)

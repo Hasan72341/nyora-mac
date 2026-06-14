@@ -10,6 +10,21 @@ struct NyoraApp: App {
     @NSApplicationDelegateAdaptor(NyoraAppDelegate.self) private var appDelegate
 
     init() {
+        // Size the shared URL cache up-front. macOS's default `URLCache.shared`
+        // is small (a few MB), so large reader page images get evicted almost
+        // immediately — defeating the reader's page prefetch (see
+        // AppState.prefetchReaderPages / prefetchNextChapter) and forcing
+        // re-downloads when revisiting a page. Page/cover fetches all go through
+        // URLSession.shared, which reads this cache. Conservative sizing:
+        // 256 MB in memory, 1 GB on disk. Set once at launch, before any fetch.
+        // (Settings cache-usage UI in PlaceholderViews reads URLCache.shared and
+        // will reflect these limits.)
+        URLCache.shared = URLCache(
+            memoryCapacity: 256 * 1024 * 1024,
+            diskCapacity: 1024 * 1024 * 1024,
+            diskPath: nil
+        )
+
         // Wire the delegate to the appState so it can shut down the helper on quit.
         // (The adaptor instance and our @StateObject are separate; we lift the
         // reference through a static so termination has access without ordering issues.)

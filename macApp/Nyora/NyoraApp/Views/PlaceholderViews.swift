@@ -2319,9 +2319,113 @@ private struct ReaderRecentRow: View {
     }
 }
 
+/// A single themed preview card for the color-scheme picker, mirroring the
+/// android `item_color_scheme.xml`: a rounded mini surface with "Abc" text, two
+/// secondary-tone bars, a primary swatch, a check when selected, and the scheme
+/// name beneath. Each card derives its own light/dark surface from the active
+/// appearance so the preview reads correctly in both modes.
+@MainActor
+private struct ColorSchemePreviewCard: View {
+    let scheme: ReaderPrefs.ColorSchemeOption
+    let dark: Bool
+    let primary: Color
+    let isSelected: Bool
+    let onTap: () -> Void
+
+    private let cardWidth: CGFloat = 92
+    private let cardHeight: CGFloat = 116
+
+    /// Derived card surface — light grey in light mode, near-black in dark mode.
+    private var surface: Color {
+        dark ? Color(white: 0.12) : Color(white: 0.95)
+    }
+
+    /// Secondary-tone color for the two bars. Schemes ship a `darkSecondary`;
+    /// use it directly in dark mode and a slightly muted blend in light mode.
+    private var secondary: Color {
+        if scheme.id == "wallpaper" {
+            return primary.opacity(0.45)
+        }
+        if let c = Color(hex: scheme.darkSecondary) {
+            return dark ? c : c.opacity(0.7)
+        }
+        return primary.opacity(0.45)
+    }
+
+    var body: some View {
+        Button(action: onTap) {
+            VStack(spacing: 4) {
+                ZStack(alignment: .topTrailing) {
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .fill(surface)
+                        .frame(width: cardWidth, height: cardHeight)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                .strokeBorder(
+                                    isSelected ? primary : Color.primary.opacity(0.12),
+                                    lineWidth: isSelected ? 2 : 1
+                                )
+                        )
+
+                    cardContent
+                        .frame(width: cardWidth, height: cardHeight)
+
+                    if isSelected {
+                        Image(systemName: "checkmark.circle.fill")
+                            .font(.system(size: 16))
+                            .foregroundStyle(primary)
+                            .padding(6)
+                    }
+                }
+
+                Text(scheme.name)
+                    .font(.caption.weight(.medium))
+                    .foregroundStyle(isSelected ? Color.primary : Color.secondary)
+                    .lineLimit(1)
+                    .frame(width: cardWidth)
+            }
+        }
+        .buttonStyle(.plain)
+        .help(scheme.name)
+    }
+
+    private var cardContent: some View {
+        ZStack {
+            // "Abc" top-left
+            Text("Abc")
+                .font(.system(size: 12))
+                .foregroundStyle(dark ? Color.white.opacity(0.85) : Color.black.opacity(0.75))
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                .padding(.top, 8)
+                .padding(.leading, 8)
+
+            // Two secondary-tone bars (40% then 70% width), bottom-anchored.
+            VStack(alignment: .leading, spacing: 6) {
+                Capsule()
+                    .fill(secondary)
+                    .frame(width: cardWidth * 0.40, height: 6)
+                Capsule()
+                    .fill(secondary)
+                    .frame(width: cardWidth * 0.70, height: 6)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
+            .padding(.horizontal, 8)
+            .padding(.bottom, 24)
+
+            // Primary swatch, bottom-right.
+            RoundedRectangle(cornerRadius: 6, style: .continuous)
+                .fill(primary)
+                .frame(width: 16, height: 16)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
+                .padding(8)
+        }
+    }
+}
+
 @MainActor
 struct SettingsView: View {
     @EnvironmentObject var appState: AppState
+    @Environment(\.colorScheme) private var colorScheme
     @State private var selected: SettingsCategory = .appearance
     @State private var syncPassword: String = ""
     @State private var cacheUsageBytes: Int = 0
@@ -2405,7 +2509,7 @@ struct SettingsView: View {
                     Text("Follow system").tag("auto"); Text("Light").tag("light"); Text("Dark").tag("dark")
                 }
             }
-            settingGroup("Accent color") {
+            settingGroup("Color scheme") {
                 accentColorContent
             }
             settingGroup("Manga list") {
@@ -2427,90 +2531,52 @@ struct SettingsView: View {
         }
     }
 
-    // MARK: - Accent color picker
+    // MARK: - Color scheme picker
 
-    private var accentCustomBinding: Binding<Color> {
-        Binding(
-            get: { Color(hex: appState.readerPrefs.customAccentHex) ?? .red },
-            set: { newColor in
-                appState.readerPrefs.customAccentHex = newColor.hexString
-                appState.readerPrefs.accentColor = "custom"
-            }
-        )
-    }
-
+    /// Android-style horizontal scroll of themed preview cards. Each card
+    /// mirrors `item_color_scheme.xml`: a mini themed surface with "Abc" text,
+    /// two secondary-tone bars, a primary swatch, a check when selected, and the
+    /// scheme name beneath.
     @ViewBuilder
     private var accentColorContent: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            // Preset swatches
-            HStack(spacing: 10) {
-                ForEach(ReaderPrefs.accentPresets, id: \.name) { preset in
-                    Button {
-                        appState.readerPrefs.accentColor = preset.name
-                    } label: {
-                        Circle()
-                            .fill(preset.color)
-                            .frame(width: 26, height: 26)
-                            .overlay(Circle().strokeBorder(Color.primary.opacity(0.12), lineWidth: 1))
-                            .overlay(
-                                Circle()
-                                    .strokeBorder(Color.white, lineWidth: 2)
-                                    .padding(-3)
-                                    .shadow(color: Color.black.opacity(0.35), radius: 2, x: 0, y: 1)
-                                    .opacity(appState.readerPrefs.accentColor == preset.name ? 1 : 0)
-                            )
+        let dark = colorScheme == .dark
+        VStack(alignment: .leading, spacing: 10) {
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(alignment: .top, spacing: 8) {
+                    ForEach(ReaderPrefs.colorSchemes) { scheme in
+                        ColorSchemePreviewCard(
+                            scheme: scheme,
+                            dark: dark,
+                            primary: primaryColor(for: scheme, dark: dark),
+                            isSelected: appState.readerPrefs.accentColor == scheme.id
+                        ) {
+                            appState.readerPrefs.accentColor = scheme.id
+                        }
                     }
-                    .buttonStyle(.plain)
-                    .help(preset.name.capitalized)
                 }
-                Spacer(minLength: 0)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 4)
             }
 
-            Text("Tap a colour, pick from your wallpaper, or choose a custom shade.")
+            Text("Each scheme uses its light or dark variant to match the app appearance.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
-
-            Divider().opacity(0.12)
-
-            // From wallpaper
-            HStack(spacing: 12) {
-                Button {
-                    if !appState.readerPrefs.pickAccentFromWallpaper() {
-                        appState.statusMessage = "Couldn't read a colour from your wallpaper."
-                    }
-                } label: {
-                    Label("Pick from Wallpaper", systemImage: "photo.on.rectangle.angled")
-                }
-                .buttonStyle(.bordered)
-
-                if appState.readerPrefs.accentColor == "wallpaper" {
-                    Circle()
-                        .fill(appState.readerPrefs.effectiveAccentColor)
-                        .frame(width: 22, height: 22)
-                        .overlay(
-                            Circle()
-                                .strokeBorder(Color.white, lineWidth: 2)
-                                .padding(-3)
-                                .shadow(color: Color.black.opacity(0.35), radius: 2, x: 0, y: 1)
-                        )
-                }
-                Spacer(minLength: 0)
-            }
-
-            // Custom color
-            HStack {
-                ColorPicker(selection: accentCustomBinding, supportsOpacity: false) {
-                    Text("Custom color")
-                }
-                if appState.readerPrefs.accentColor == "custom" {
-                    Text("In use")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-                Spacer(minLength: 0)
-            }
+                .padding(.horizontal, 14)
+                .padding(.bottom, 10)
         }
-        .padding(14)
+    }
+
+    /// Resolve the primary color a card should render with — its OWN scheme
+    /// primary, or the live wallpaper/Dynamic accent for the "wallpaper" card.
+    private func primaryColor(for scheme: ReaderPrefs.ColorSchemeOption, dark: Bool) -> Color {
+        if scheme.id == "wallpaper" {
+            return appState.readerPrefs.effectiveAccentColor
+        }
+        if let hex = appState.readerPrefs.primaryHex(for: scheme.id, dark: dark),
+           let c = Color(hex: hex) {
+            return c
+        }
+        return .accentColor
     }
 
     private var librarySection: some View {
