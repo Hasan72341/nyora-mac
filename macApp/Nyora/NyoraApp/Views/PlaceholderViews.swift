@@ -2430,6 +2430,14 @@ struct SettingsView: View {
     @State private var syncPassword: String = ""
     @State private var cacheUsageBytes: Int = 0
     @State private var dbSizeBytes: Int = 0
+    // Cloud-sync email/password sign-in
+    @State private var supabaseEmail: String = ""
+    @State private var supabasePassword: String = ""
+    // Tracker sign-in state
+    @State private var kitsuEmail: String = ""
+    @State private var kitsuPassword: String = ""
+    @State private var manualTrackerToken: [String: String] = [:]
+    @State private var trackerBusy: String? = nil
 
     var body: some View {
         HSplitView {
@@ -2793,21 +2801,111 @@ struct SettingsView: View {
 
     private var trackerSection: some View {
         VStack(spacing: 12) {
-            settingGroup("AniList") {
-                toggleRow("Scrobble on chapter open", description: "Update progress automatically.", isOn: bind(\.tracker.anilistEnabled))
-                secureFieldRow("Personal access token", text: bind(\.tracker.anilistToken), placeholder: "Generate at anilist.co/settings/developer")
-                Text("Click New client → Token only. Stored in the macOS Keychain.")
-                    .font(.caption).foregroundStyle(.secondary)
-                    .padding(.horizontal, 14).padding(.bottom, 10)
+            Text("Link a tracking service to sync your reading progress. Tokens are stored in the macOS Keychain.")
+                .font(.caption).foregroundStyle(.secondary)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 4)
+
+            ForEach(TrackerService.allCases) { service in
+                settingGroup(service.displayName) {
+                    trackerGroupContent(service)
+                }
             }
-            settingGroup("MyAnimeList") {
-                infoRow("Status", value: "Coming soon")
+        }
+    }
+
+    @ViewBuilder
+    private func trackerGroupContent(_ service: TrackerService) -> some View {
+        if appState.tracker.hasToken(service) {
+            infoRow("Status", value: "Connected")
+            toggleRow("Scrobble on chapter open",
+                      description: "Update progress automatically as you read.",
+                      isOn: trackerEnabledBinding(service))
+            buttonRow("Sign out", systemImage: "rectangle.portrait.and.arrow.right", tint: .red) {
+                appState.tracker.disconnect(service)
             }
-            settingGroup("Kitsu") {
-                infoRow("Status", value: "Coming soon")
+        } else {
+            switch service.grantKind {
+            case .password:
+                textFieldRow("Email", text: $kitsuEmail, placeholder: "you@example.com")
+                secureFieldRow("Password", text: $kitsuPassword, placeholder: "••••••••")
+                buttonRow(trackerBusy == service.rawValue ? "Signing in…" : "Log in",
+                          systemImage: "person.crop.circle.badge.plus") {
+                    connectTrackerPassword(service, email: kitsuEmail, password: kitsuPassword)
+                }
+            case .implicit, .authorizationCode:
+                buttonRow(trackerBusy == service.rawValue ? "Connecting…" : "Connect with \(service.displayName)",
+                          systemImage: "link") {
+                    connectTrackerOAuth(service)
+                }
             }
-            settingGroup("Shikimori") {
-                infoRow("Status", value: "Coming soon")
+
+            secureFieldRow("Access token (manual)",
+                           text: manualTrackerTokenBinding(service),
+                           placeholder: "Paste a personal token")
+            buttonRow("Save token", systemImage: "key.fill") {
+                let value = (manualTrackerToken[service.rawValue] ?? "")
+                    .trimmingCharacters(in: .whitespacesAndNewlines)
+                guard !value.isEmpty else { return }
+                appState.tracker.setToken(service, value)
+                appState.tracker.setEnabled(service, true)
+                manualTrackerToken[service.rawValue] = ""
+            }
+        }
+    }
+
+    private func trackerEnabledBinding(_ service: TrackerService) -> Binding<Bool> {
+        Binding(
+            get: { appState.tracker.isEnabled(service) },
+            set: { appState.tracker.setEnabled(service, $0) }
+        )
+    }
+
+    private func manualTrackerTokenBinding(_ service: TrackerService) -> Binding<String> {
+        Binding(
+            get: { manualTrackerToken[service.rawValue] ?? "" },
+            set: { manualTrackerToken[service.rawValue] = $0 }
+        )
+    }
+
+    private func connectTrackerOAuth(_ service: TrackerService) {
+        guard trackerBusy == nil else { return }
+        trackerBusy = service.rawValue
+        Task { @MainActor in
+            defer { trackerBusy = nil }
+            do {
+                let result = try await TrackerOAuth.shared.login(service)
+                appState.tracker.setToken(service, result.accessToken)
+                appState.tracker.setRefreshToken(service, result.refreshToken)
+                appState.tracker.setEnabled(service, true)
+                appState.statusMessage = "\(service.displayName) connected"
+            } catch TrackerOAuth.AuthError.cancelled {
+                // user dismissed — stay silent
+            } catch {
+                appState.statusMessage = "\(service.displayName) sign-in failed: \(error.localizedDescription)"
+            }
+        }
+    }
+
+    private func connectTrackerPassword(_ service: TrackerService, email: String, password: String) {
+        let em = email.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !em.isEmpty, !password.isEmpty else {
+            appState.statusMessage = "Enter your email and password"
+            return
+        }
+        guard trackerBusy == nil else { return }
+        trackerBusy = service.rawValue
+        Task { @MainActor in
+            defer { trackerBusy = nil }
+            do {
+                let result = try await TrackerOAuth.shared.loginWithPassword(service, username: em, password: password)
+                appState.tracker.setToken(service, result.accessToken)
+                appState.tracker.setRefreshToken(service, result.refreshToken)
+                appState.tracker.setEnabled(service, true)
+                kitsuPassword = ""
+                appState.statusMessage = "\(service.displayName) connected"
+            } catch {
+                appState.statusMessage = "\(service.displayName) sign-in failed: \(error.localizedDescription)"
             }
         }
     }
@@ -2820,7 +2918,7 @@ struct SettingsView: View {
                         VStack(alignment: .leading, spacing: 4) {
                             Text(status.userId)
                                 .font(.headline)
-                            Text("Authenticated via Google")
+                            Text("Signed in")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                         }
@@ -2835,7 +2933,7 @@ struct SettingsView: View {
                         VStack(alignment: .leading, spacing: 4) {
                             Text("Not signed in")
                                 .font(.headline)
-                            Text("Sign in to sync your library across devices using Supabase.")
+                            Text("Sign in to sync your library across devices.")
                                 .font(.subheadline)
                                 .foregroundStyle(.secondary)
                         }
@@ -2843,9 +2941,16 @@ struct SettingsView: View {
 
                         rowSeparator
 
-                        buttonRow("Sign in with Google", systemImage: "person.crop.circle.badge.plus", assetImage: "GoogleG") {
-                            guard !appState.isSupabaseSigningIn else { return }
-                            signInWithGoogle(status: status)
+                        textFieldRow("Email", text: $supabaseEmail, placeholder: "you@example.com")
+                        secureFieldRow("Password", text: $supabasePassword, placeholder: "••••••••")
+
+                        buttonRow("Sign in", systemImage: "person.crop.circle.badge.plus") {
+                            submitSupabaseAuth(register: false)
+                        }
+                        .opacity(appState.isSupabaseSigningIn ? 0.5 : 1.0)
+
+                        buttonRow("Create account", systemImage: "person.badge.plus") {
+                            submitSupabaseAuth(register: true)
                         }
                         .opacity(appState.isSupabaseSigningIn ? 0.5 : 1.0)
                     }
@@ -2872,21 +2977,18 @@ struct SettingsView: View {
         }
     }
 
-    private func signInWithGoogle(status: SupabaseStatusResponse) {
+    private func submitSupabaseAuth(register: Bool) {
         guard !appState.isSupabaseSigningIn else { return }
-        Task {
-            appState.isSupabaseSigningIn = true
-            appState.statusMessage = "Opening Google sign-in..."
-            defer { appState.isSupabaseSigningIn = false }
-
-            switch await SupabaseGoogleAuthHelper.signIn(serverClientID: status.googleServerClientId) {
-            case .success(let idToken):
-                _ = await appState.supabaseSignIn(idToken: idToken)
-            case .cancelled:
-                appState.statusMessage = "Google sign-in canceled"
-            case .failure(let message):
-                appState.statusMessage = "Google sign-in failed: \(message)"
-            }
+        let em = supabaseEmail.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !em.isEmpty, !supabasePassword.isEmpty else {
+            appState.statusMessage = "Enter your email and password"
+            return
+        }
+        Task { @MainActor in
+            _ = register
+                ? await appState.supabaseRegister(email: em, password: supabasePassword)
+                : await appState.supabaseSignIn(email: em, password: supabasePassword)
+            supabasePassword = ""
         }
     }
 

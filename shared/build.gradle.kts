@@ -58,13 +58,17 @@ kotlin {
             resources.srcDirs("$sharedSrc/jvmMain/resources")
             dependencies {
                 implementation("org.jetbrains.kotlinx:kotlinx-coroutines-swing:1.10.2")
-                implementation("org.graalvm.js:js:24.1.2")
-                implementation("org.graalvm.sdk:graal-sdk:24.1.2")
+                // GraalVM dropped — JS evaluation stubbed in KotatsuLoaderContext to keep
+                // the hosted helper small (<500 MB) and fast to start.
                 implementation("app.cash.sqldelight:sqlite-driver:2.1.0")
-                // OkHttp 4 — required by nyora parsers and our LoaderContext impl.
-                implementation("com.squareup.okhttp3:okhttp:4.12.0")
-                implementation("com.squareup.okhttp3:okhttp-dnsoverhttps:4.12.0")
-                implementation("org.jsoup:jsoup:1.17.2")
+                // OkHttp 5 — version aligned with kotatsu-parsers-redo (which targets OkHttp 5).
+                implementation("com.squareup.okhttp3:okhttp:5.1.0")
+                implementation("com.squareup.okhttp3:okhttp-dnsoverhttps:5.1.0")
+                implementation("org.jsoup:jsoup:1.21.2")
+                // Native Kotatsu parsers (kotatsu-parsers-redo) — the in-process parser engine.
+                // NOTE: unlike Android (which has org.json built into the platform), the desktop
+                // JVM does not, so org.json must be pulled in (do NOT exclude it here).
+                implementation("com.github.clquwu:kotatsu-parsers-redo:59c033ecfd")
             }
         }
         if (isMacOS) {

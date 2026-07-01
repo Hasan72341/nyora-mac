@@ -5,7 +5,8 @@ struct WelcomeView: View {
     @EnvironmentObject var appState: AppState
     @State private var appearing = false
     @State private var showConflictDialog = false
-    @State private var pendingIdToken: String? = nil
+    @State private var email = ""
+    @State private var password = ""
     
     var body: some View {
         ZStack {
@@ -64,37 +65,52 @@ struct WelcomeView: View {
                 VStack(spacing: 18) {
                     let isBusy = appState.isSupabaseSigningIn || appState.isSupabaseSyncing
                     
-                    // Google Sign In
+                    // Email / password
+                    TextField("Email", text: $email)
+                        .textFieldStyle(.roundedBorder)
+                        .textContentType(.username)
+                        .disableAutocorrection(true)
+                    SecureField("Password", text: $password)
+                        .textFieldStyle(.roundedBorder)
+                        .textContentType(.password)
+
                     Button {
-                        if !isBusy { signIn() }
+                        if !isBusy { signIn(register: false) }
                     } label: {
                         HStack(spacing: 12) {
                             if appState.isSupabaseSigningIn {
-                                ProgressView()
-                                    .controlSize(.small)
-                            } else {
-                                Image(bundleResource: "GoogleG")
-                                    .resizable()
-                                    .frame(width: 20, height: 20)
+                                ProgressView().controlSize(.small)
                             }
-                            Text("Sign in with Google")
-                                .font(.headline.weight(.bold))
+                            Text("Sign in").font(.headline.weight(.bold))
                         }
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 14)
-                        .background(Color.white)
-                        .foregroundStyle(Color(white: 0.13))
+                        .background(Color.appAccent)
+                        .foregroundStyle(.white)
                         .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-                        .shadow(color: .black.opacity(0.18), radius: 10, y: 5)
-                        .overlay {
-                            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                                .strokeBorder(.black.opacity(0.08), lineWidth: 1)
-                        }
+                        .shadow(color: Color.appAccent.opacity(0.35), radius: 10, y: 5)
                     }
                     .buttonStyle(.plain)
                     .opacity(isBusy ? 0.5 : 1.0)
                     .scaleEffect(appearing ? 1 : 0.9)
-                    .keyboardShortcut("s", modifiers: [.command])
+                    .keyboardShortcut(.return)
+
+                    Button {
+                        if !isBusy { signIn(register: true) }
+                    } label: {
+                        Text("Create account")
+                            .font(.headline.weight(.semibold))
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 12)
+                            .background(.ultraThinMaterial)
+                            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                            .overlay {
+                                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                                    .strokeBorder(.white.opacity(0.1), lineWidth: 1)
+                            }
+                    }
+                    .buttonStyle(.plain)
+                    .opacity(isBusy ? 0.5 : 1.0)
                     
                     // Backup Restore
                     Button {
@@ -190,9 +206,7 @@ struct WelcomeView: View {
             Button("Replace Local with Cloud", role: .destructive) {
                 confirmSignIn(mode: .replace)
             }
-            Button("Cancel", role: .cancel) {
-                pendingIdToken = nil
-            }
+            Button("Cancel", role: .cancel) { }
         } message: {
             Text("You already have library data on this device. Would you like to merge it with your cloud library, or replace this local data with what's in the cloud?")
         }
@@ -200,47 +214,35 @@ struct WelcomeView: View {
     
     private enum SignInMode { case merge, replace }
     
-    private func signIn() {
+    private func signIn(register: Bool) {
         guard !appState.isSupabaseSigningIn else { return }
+        let em = email.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !em.isEmpty, !password.isEmpty else {
+            appState.statusMessage = "Enter your email and password"
+            return
+        }
         Task {
-            appState.isSupabaseSigningIn = true
-            appState.statusMessage = "Opening Google sign-in..."
-            defer { appState.isSupabaseSigningIn = false }
-
-            let serverClientID = appState.supabaseStatus?.googleServerClientId ?? ""
-            switch await SupabaseGoogleAuthHelper.signIn(serverClientID: serverClientID) {
-            case .success(let idToken):
-                if await appState.supabaseHasLocalData() {
-                    self.pendingIdToken = idToken
-                    self.showConflictDialog = true
-                } else {
-                    let ok = await appState.supabaseSignIn(idToken: idToken)
-                    if ok {
-                        await appState.supabaseSync()
-                        finish()
-                    }
-                }
-            case .cancelled:
-                appState.statusMessage = "Google sign-in canceled"
-            case .failure(let message):
-                appState.statusMessage = "Google sign-in failed: \(message)"
+            let ok = register
+                ? await appState.supabaseRegister(email: em, password: password)
+                : await appState.supabaseSignIn(email: em, password: password)
+            guard ok else { return }
+            if await appState.supabaseHasLocalData() {
+                self.showConflictDialog = true   // already authed; ask merge vs replace
+            } else {
+                await appState.supabaseSync()
+                finish()
             }
         }
     }
 
     private func confirmSignIn(mode: SignInMode) {
-        guard let idToken = pendingIdToken else { return }
         Task {
-            let ok = await appState.supabaseSignIn(idToken: idToken)
-            if ok {
-                if mode == .replace {
-                    await appState.supabaseRestoreFromCloud()
-                } else {
-                    await appState.supabaseSync()
-                }
-                finish()
+            if mode == .replace {
+                await appState.supabaseRestoreFromCloud()
+            } else {
+                await appState.supabaseSync()
             }
-            self.pendingIdToken = nil
+            finish()
         }
     }
 
