@@ -1127,66 +1127,78 @@ private struct ChapterRow: View {
             : String(format: "%.1f", n)
     }
 
+    /// Secondary line: relative date · scanlator · volume (whichever are present).
+    private var metaString: String {
+        var parts: [String] = []
+        if !uploadDateString.isEmpty { parts.append(uploadDateString) }
+        if let s = chapter.scanlator, !s.isEmpty { parts.append(s) }
+        if chapter.volume > 0 { parts.append("Vol. \(chapter.volume)") }
+        return parts.joined(separator: " · ")
+    }
+
     var body: some View {
         Button { onTap() } label: {
-            VStack(spacing: 0) {
-                HStack(spacing: 10) {
-                    // Chapter number badge
-                    Text(chapterNumberText)
-                        .font(.caption.bold())
-                        .foregroundStyle(Color.appAccent)
-                        .frame(width: 36, height: 24)
-                        .background(
-                            LinearGradient(
-                                colors: [Color.appAccent.opacity(0.18), Color.appAccent.opacity(0.07)],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            ),
-                            in: RoundedRectangle(cornerRadius: 6, style: .continuous)
-                        )
+            HStack(spacing: 12) {
+                // Chapter-number badge — fills with accent on hover
+                Text(chapterNumberText)
+                    .font(.callout.bold().monospacedDigit())
+                    .foregroundStyle(isHovered ? Color.white : Color.appAccent)
+                    .frame(width: 46, height: 40)
+                    .background(
+                        RoundedRectangle(cornerRadius: 11, style: .continuous)
+                            .fill(
+                                isHovered
+                                    ? AnyShapeStyle(Color.appAccent)
+                                    : AnyShapeStyle(LinearGradient(
+                                        colors: [Color.appAccent.opacity(0.20), Color.appAccent.opacity(0.08)],
+                                        startPoint: .topLeading,
+                                        endPoint: .bottomTrailing
+                                      ))
+                            )
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 11, style: .continuous)
+                            .strokeBorder(Color.appAccent.opacity(isHovered ? 0 : 0.22), lineWidth: 0.5)
+                    )
 
-                    // Middle: title + upload date
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(chapter.title)
-                            .font(.subheadline.weight(.semibold))
-                            .foregroundStyle(.primary)
+                // Title + meta line
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(chapter.title)
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(.primary)
+                        .lineLimit(1)
+
+                    if !metaString.isEmpty {
+                        Text(metaString)
+                            .font(.caption)
+                            .foregroundStyle(.tertiary)
                             .lineLimit(1)
-
-                        if !uploadDateString.isEmpty {
-                            Text(uploadDateString)
-                                .font(.caption)
-                                .foregroundStyle(.tertiary)
-                        }
                     }
-
-                    Spacer()
-
-                    // Right: chevron, accentColor on hover
-                    Image(systemName: "chevron.right")
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(isHovered ? Color.appAccent : Color.secondary.opacity(0.45))
-                        .animation(.spring(response: 0.35, dampingFraction: 0.7), value: isHovered)
                 }
-                .padding(.horizontal, 12)
-                .padding(.vertical, 9)
-                .background(
-                    RoundedRectangle(cornerRadius: 10, style: .continuous)
-                        .fill(
-                            isHovered
-                                ? AnyShapeStyle(LinearGradient(
-                                    colors: [Color.primary.opacity(0.08), Color.primary.opacity(0.03)],
-                                    startPoint: .leading,
-                                    endPoint: .trailing
-                                  ))
-                                : AnyShapeStyle(Color.clear)
-                        )
-                )
-                .animation(.spring(response: 0.35, dampingFraction: 0.7), value: isHovered)
-                .contentShape(Rectangle())
 
-                // Subtle divider below each row
-                Divider().opacity(0.10)
+                Spacer(minLength: 8)
+
+                // Read affordance — chevron → play on hover
+                Image(systemName: isHovered ? "play.fill" : "chevron.right")
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(isHovered ? Color.appAccent : Color.secondary.opacity(0.4))
+                    .frame(width: 24, height: 24)
+                    .background(Circle().fill(isHovered ? Color.appAccent.opacity(0.15) : Color.clear))
             }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+            .background(
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .fill(isHovered
+                        ? AnyShapeStyle(Color.appAccent.opacity(0.07))
+                        : AnyShapeStyle(Color.primary.opacity(0.035)))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .strokeBorder(Color.appAccent.opacity(isHovered ? 0.30 : 0), lineWidth: 1)
+            )
+            .contentShape(Rectangle())
+            .animation(.spring(response: 0.32, dampingFraction: 0.72), value: isHovered)
         }
         .buttonStyle(.plain)
         .onHover { isHovered = $0 }
@@ -1208,6 +1220,7 @@ private struct MangaDetailView: View {
     @State private var isLibraryHovered: Bool = false
     @State private var libraryRingScale: CGFloat = 1.0
     @State private var showDownloadSheet: Bool = false
+    @State private var chaptersNewestFirst: Bool = false
 
     /// The source's web page. Prefers `publicUrl`, falls back to `url`. Only a
     /// valid absolute (http/https) URL is returned so the button stays hidden
@@ -1257,10 +1270,11 @@ private struct MangaDetailView: View {
                 Divider().padding(.vertical, 4)
 
                 if appState.readerPrefs.pagesTab {
-                    Picker("Details Tab", selection: $selectedTab) {
+                    Picker("", selection: $selectedTab) {
                         Text("Chapters").tag(0)
                         Text("Pages").tag(1)
                     }
+                    .labelsHidden()
                     .pickerStyle(.segmented)
                     .tint(Color.appAccent)
                     .padding(.vertical, 4)
@@ -1541,6 +1555,26 @@ private struct MangaDetailView: View {
 
             Spacer()
 
+            if details.chapters.count > 1 {
+                Button {
+                    withAnimation(.easeInOut(duration: 0.2)) { chaptersNewestFirst.toggle() }
+                } label: {
+                    Label(
+                        chaptersNewestFirst ? "Newest" : "Oldest",
+                        systemImage: chaptersNewestFirst ? "arrow.down" : "arrow.up"
+                    )
+                    .font(.caption.weight(.semibold))
+                    .labelStyle(.titleAndIcon)
+                    .foregroundStyle(Color.appAccent)
+                    .padding(.horizontal, 9)
+                    .padding(.vertical, 3)
+                    .background(Color.appAccent.opacity(0.12), in: Capsule())
+                    .overlay(Capsule().strokeBorder(Color.appAccent.opacity(0.25), lineWidth: 0.5))
+                }
+                .buttonStyle(.plain)
+                .help("Sort chapters newest- or oldest-first")
+            }
+
             if !details.chapters.isEmpty {
                 Button {
                     showDownloadSheet = true
@@ -1575,8 +1609,9 @@ private struct MangaDetailView: View {
 
     @ViewBuilder
     private var chaptersList: some View {
-        LazyVStack(spacing: 0) {
-            ForEach(details.chapters) { chapter in
+        let ordered = chaptersNewestFirst ? Array(details.chapters.reversed()) : details.chapters
+        LazyVStack(spacing: 5) {
+            ForEach(ordered) { chapter in
                 ChapterRow(chapter: chapter) { onChapter(chapter) }
             }
         }

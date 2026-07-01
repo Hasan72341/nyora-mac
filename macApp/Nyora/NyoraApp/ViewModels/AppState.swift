@@ -414,14 +414,21 @@ final class AppState: ObservableObject {
         let token = UUID()
         detailRequestToken = token
         do {
-            let details = try await helper.details(sourceId: sid, mangaUrl: manga.url)
+            var details = try await helper.details(sourceId: sid, mangaUrl: manga.url)
             guard detailRequestToken == token,
                   selectedSourceId == sid,
                   selectedBrowseMangaId == manga.id
             else { return }
+            // Some native parsers (e.g. Madara-family like TopManhua) return getDetails
+            // without re-parsing the cover/title — they expect the caller to keep the
+            // values from the browse list. Backfill from the tapped summary so the
+            // overview panel never shows a blank thumbnail.
+            if details.manga.coverUrl.isEmpty { details.manga.coverUrl = manga.coverUrl }
+            if details.manga.title.isEmpty { details.manga.title = manga.title }
             activeMangaDetails = details
+            let coverForAccent = details.manga.coverUrl
             Task.detached(priority: .background) { [weak self] in
-                await self?.updateCoverAccent(from: details.manga.coverUrl)
+                await self?.updateCoverAccent(from: coverForAccent)
             }
             await refreshDetailsFavouritedFlag()
             statusMessage = "Loaded \(details.chapters.count) chapters of \(details.manga.title)"
@@ -1656,31 +1663,39 @@ extension AppState {
         }
     }
 
-    func supabaseSignIn(idToken: String) async -> Bool {
+    func supabaseSignIn(email: String, password: String) async -> Bool {
+        await performAuth(statusMessage: "Signing in…") {
+            try await self.helper.supabaseSignIn(email: email, password: password)
+        }
+    }
+
+    func supabaseRegister(email: String, password: String) async -> Bool {
+        await performAuth(statusMessage: "Creating account…") {
+            try await self.helper.supabaseRegister(email: email, password: password)
+        }
+    }
+
+    private func performAuth(statusMessage: String, _ call: () async throws -> Bool) async -> Bool {
         isSupabaseSigningIn = true
-        statusMessage = "Signing in with Google..."
-        print("DEBUG: supabaseSignIn started. idToken length: \(idToken.count)")
+        self.statusMessage = statusMessage
         defer { isSupabaseSigningIn = false }
         do {
-            let ok = try await helper.supabaseSignIn(idToken: idToken)
-            print("DEBUG: helper.supabaseSignIn returned: \(ok)")
+            let ok = try await call()
             await refreshSupabaseStatus()
-            print("DEBUG: after refreshSupabaseStatus: isAuthenticated=\(supabaseStatus?.isAuthenticated ?? false)")
             if ok {
-                // Refresh library after sign in to get cloud data
+                // Refresh library after auth to pull cloud data
                 await reloadFavourites()
                 await reloadHistory()
                 await reloadBookmarks()
                 await reloadUpdates()
                 await reloadCategories()
-                statusMessage = "Signed in. Syncing library..."
+                self.statusMessage = "Signed in. Syncing library…"
             } else {
-                statusMessage = "Supabase sign-in failed"
+                self.statusMessage = "Sign-in failed"
             }
             return ok
         } catch {
-            print("Supabase sign in error: \(error)")
-            statusMessage = "Supabase sign-in failed: \(error.localizedDescription)"
+            self.statusMessage = "Sign-in failed: \(error.localizedDescription)"
             return false
         }
     }

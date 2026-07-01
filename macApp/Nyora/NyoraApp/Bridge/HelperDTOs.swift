@@ -39,7 +39,7 @@ struct HelperBrowseResponse: Decodable {
 }
 
 struct HelperDetailsResponse: Decodable {
-    let manga: HelperManga
+    var manga: HelperManga
     let chapters: [HelperChapter]
 }
 
@@ -49,13 +49,13 @@ struct HelperPagesResponse: Decodable {
 
 struct HelperManga: Decodable, Identifiable, Hashable {
     let id: String
-    let title: String
+    var title: String
     let altTitles: [String]
     let url: String
     let publicUrl: String
     let rating: Float
     let isNsfw: Bool
-    let coverUrl: String
+    var coverUrl: String
     let largeCoverUrl: String?
     let authors: [String]
     let description: String

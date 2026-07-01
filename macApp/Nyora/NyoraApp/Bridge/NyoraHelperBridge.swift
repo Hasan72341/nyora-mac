@@ -535,8 +535,13 @@ actor NyoraHelperBridge {
         try await get("/supabase/status")
     }
 
-    func supabaseSignIn(idToken: String) async throws -> Bool {
-        let response: SupabaseOkResponse = try await post("/supabase/signin?idToken=\(idToken.urlEscaped)")
+    func supabaseSignIn(email: String, password: String) async throws -> Bool {
+        let response: SupabaseOkResponse = try await post("/supabase/signin?email=\(email.urlEscaped)&password=\(password.urlEscaped)")
+        return response.ok
+    }
+
+    func supabaseRegister(email: String, password: String) async throws -> Bool {
+        let response: SupabaseOkResponse = try await post("/supabase/register?email=\(email.urlEscaped)&password=\(password.urlEscaped)")
         return response.ok
     }
 
