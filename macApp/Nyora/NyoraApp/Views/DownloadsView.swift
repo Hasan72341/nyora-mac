@@ -51,19 +51,9 @@ struct DownloadsView: View {
                                 DownloadRow(download: download)
                             }
                         }
-                        .background(
-                            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                                .fill(
-                                    LinearGradient(
-                                        colors: [
-                                            Color.primary.opacity(0.05),
-                                            Color.primary.opacity(0.015)
-                                        ],
-                                        startPoint: .top,
-                                        endPoint: .bottom
-                                    )
-                                )
-                        )
+                        // Grouped downloads panel → native Liquid Glass card
+                        // (replaces the faux primary-opacity gradient fill).
+                        .glassCard(cornerRadius: 14)
                         .padding(.horizontal, 16)
                         .padding(.bottom, 24)
                     }

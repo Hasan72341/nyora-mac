@@ -1,22 +1,5 @@
 import SwiftUI
 import LocalAuthentication
-import AppKit
-
-/// Makes the hosting window non-opaque so the sidebar's auto-glass AND the
-/// detail pane's material both frost the desktop behind the window — giving the
-/// whole window a consistent Liquid Glass feel (not just the sidebar).
-private struct TransparentWindowConfigurator: NSViewRepresentable {
-    func makeNSView(context: Context) -> NSView {
-        let v = NSView()
-        DispatchQueue.main.async {
-            guard let win = v.window else { return }
-            win.isOpaque = false
-            win.backgroundColor = .clear
-        }
-        return v
-    }
-    func updateNSView(_ nsView: NSView, context: Context) {}
-}
 
 @MainActor
 struct RootView: View {
@@ -70,10 +53,12 @@ struct RootView: View {
                     )
                 } detail: {
                     DetailContainerView(destination: selectedDestination)
-                        // Detail column gets a translucent frosted background so the
-                        // right side carries the same Liquid Glass feel as the
-                        // auto-glass sidebar (instead of flat opaque black).
-                        .background(Rectangle().fill(.regularMaterial).ignoresSafeArea())
+                        // Apple-strict: the content pane stays OPAQUE & legible.
+                        // Glass belongs on the chrome (auto-glass sidebar/toolbar)
+                        // and on floating surfaces WITHIN each page (cards, section
+                        // panels) — not on the pane background, and never fully
+                        // see-through.
+                        .background(Color.appBackground.ignoresSafeArea())
                         .navigationSplitViewColumnWidth(min: 480, ideal: 900)
                 }
             }
@@ -133,7 +118,6 @@ struct RootView: View {
                 isUnlocked = true
             }
         }
-        .background(TransparentWindowConfigurator())
     }
 
     private func authenticate() {

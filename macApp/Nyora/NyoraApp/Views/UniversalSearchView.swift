@@ -74,29 +74,9 @@ struct UniversalSearchView: View {
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 13)
-        .background(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .fill(Color.primary.opacity(0.05))
-                .background(
-                    LinearGradient(
-                        colors: [Color.appAccent.opacity(0.07), .clear],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                    .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-                )
-                .overlay(
-                    RoundedRectangle(cornerRadius: 16, style: .continuous)
-                        .strokeBorder(
-                            LinearGradient(
-                                colors: [Color.appAccent.opacity(0.22), Color.primary.opacity(0.06)],
-                                startPoint: .top,
-                                endPoint: .bottom
-                            ),
-                            lineWidth: 0.6
-                        )
-                )
-        )
+        // Floating search bar — native Liquid Glass (rounded-rect), routed
+        // through the shared helper so reduce-transparency is respected.
+        .glassOverlay(cornerRadius: 16)
         .padding(.horizontal, 24)
         .padding(.top, 24)
         .padding(.bottom, 16)
@@ -132,21 +112,21 @@ struct UniversalSearchView: View {
             Spacer()
 
             ZStack {
-                Circle()
-                    .fill(
-                        RadialGradient(
-                            colors: [Color.appAccent.opacity(0.26), Color.appAccent.opacity(0.10), .clear],
-                            center: .topLeading,
-                            startRadius: 0,
-                            endRadius: 80
-                        )
-                    )
-                    .frame(width: 90, height: 90)
+                RadialGradient(
+                    colors: [Color.appAccent.opacity(0.26), Color.appAccent.opacity(0.10), .clear],
+                    center: .topLeading,
+                    startRadius: 0,
+                    endRadius: 80
+                )
+                .frame(width: 90, height: 90)
                 Image(systemName: "magnifyingglass.circle.fill")
                     .font(.system(size: 64))
                     .symbolRenderingMode(.hierarchical)
                     .foregroundStyle(Color.appAccent)
             }
+            // Floating empty-state icon badge — accent-tinted glass disc.
+            .frame(width: 90, height: 90)
+            .adaptiveGlass(.circle, tint: .appAccent)
             .animeEntrance(delay: 0.0)
 
             Spacer().frame(height: 24)
