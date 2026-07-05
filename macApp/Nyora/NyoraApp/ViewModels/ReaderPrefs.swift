@@ -30,6 +30,9 @@ final class ReaderPrefs: ObservableObject {
     @Published var nsfwFilter: Bool = UserDefaults.standard.bool(forKey: Keys.nsfwFilter) {
         didSet { ud.set(nsfwFilter, forKey: Keys.nsfwFilter) }
     }
+    @Published var noNsfwHistory: Bool = UserDefaults.standard.bool(forKey: Keys.noNsfwHistory) {
+        didSet { ud.set(noNsfwHistory, forKey: Keys.noNsfwHistory) }
+    }
     @Published var isIncognitoModeEnabled: Bool = UserDefaults.standard.bool(forKey: Keys.incognitoMode) {
         didSet { ud.set(isIncognitoModeEnabled, forKey: Keys.incognitoMode) }
     }
@@ -532,6 +535,7 @@ final class ReaderPrefs: ObservableObject {
 
     private enum Keys {
         static let nsfwFilter       = "nyora.library.nsfwFilter"
+        static let noNsfwHistory    = "nyora.library.noNsfwHistory"
         static let incognitoMode    = "nyora.app.incognito"
         static let biometricProtection = "nyora.app.biometric"
         static let appLocale        = "nyora.app.locale"
