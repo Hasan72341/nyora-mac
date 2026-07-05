@@ -224,14 +224,9 @@ struct BrowserView: View {
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 7)
-        .background(
-            RoundedRectangle(cornerRadius: 9, style: .continuous)
-                .fill(Color.primary.opacity(0.06))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 9, style: .continuous)
-                .strokeBorder(Color.primary.opacity(0.08), lineWidth: 1)
-        )
+        // Floating address bar → native Liquid Glass (replaces the faux
+        // primary-opacity fill + hairline stroke).
+        .glassOverlay(cornerRadius: 9)
         .frame(maxWidth: .infinity)
     }
 

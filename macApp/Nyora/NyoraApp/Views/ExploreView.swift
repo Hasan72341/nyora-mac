@@ -514,11 +514,7 @@ struct ExploreView: View {
                 }
                 .padding(.horizontal, 12)
                 .padding(.vertical, 8)
-                .background {
-                    RoundedRectangle(cornerRadius: 10, style: .continuous)
-                        .fill(Color.primary.opacity(0.05))
-                        .strokeBorder(Color.primary.opacity(0.08), lineWidth: 0.75)
-                }
+                .glassOverlay(cornerRadius: 10)
                 .onTapGesture {
                     isSearchQueryFocused = true
                 }

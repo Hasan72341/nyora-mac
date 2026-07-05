@@ -411,23 +411,14 @@ struct LocalView: View {
             Color.appBackground.ignoresSafeArea()
 
             VStack(spacing: 26) {
-                ZStack {
-                    Circle()
-                        .fill(
-                            RadialGradient(
-                                colors: [Color.appAccent.opacity(0.18), Color.appAccent.opacity(0.05)],
-                                center: .center,
-                                startRadius: 0,
-                                endRadius: 40
-                            )
-                        )
-                        .frame(width: 80, height: 80)
-
-                    Image(systemName: "folder.badge.plus")
-                        .font(.system(size: 34))
-                        .symbolRenderingMode(.hierarchical)
-                        .foregroundStyle(Color.appAccent)
-                }
+                // Floating empty-state icon badge — native Liquid Glass circle
+                // in place of the flat accent radial wash.
+                Image(systemName: "folder.badge.plus")
+                    .font(.system(size: 34))
+                    .symbolRenderingMode(.hierarchical)
+                    .foregroundStyle(Color.appAccent)
+                    .frame(width: 80, height: 80)
+                    .adaptiveGlass(.circle, tint: Color.appAccent)
 
                 VStack(spacing: 8) {
                     Text("No Folder Selected")
@@ -467,23 +458,14 @@ struct LocalView: View {
             Color.appBackground.ignoresSafeArea()
 
             VStack(spacing: 24) {
-                ZStack {
-                    Circle()
-                        .fill(
-                            RadialGradient(
-                                colors: [Color.appAccent.opacity(0.18), Color.appAccent.opacity(0.05)],
-                                center: .center,
-                                startRadius: 0,
-                                endRadius: 40
-                            )
-                        )
-                        .frame(width: 80, height: 80)
-
-                    Image(systemName: "folder.badge.plus")
-                        .font(.system(size: 34))
-                        .symbolRenderingMode(.hierarchical)
-                        .foregroundStyle(Color.appAccent)
-                }
+                // Floating empty-state icon badge — native Liquid Glass circle
+                // in place of the flat accent radial wash.
+                Image(systemName: "folder.badge.plus")
+                    .font(.system(size: 34))
+                    .symbolRenderingMode(.hierarchical)
+                    .foregroundStyle(Color.appAccent)
+                    .frame(width: 80, height: 80)
+                    .adaptiveGlass(.circle, tint: Color.appAccent)
 
                 VStack(spacing: 8) {
                     Text("No CBZ files found")
@@ -2519,7 +2501,7 @@ struct SettingsView: View {
            let c = Color(hex: hex) {
             return c
         }
-        return .accentColor
+        return .appAccent
     }
 
     private var librarySection: some View {
@@ -3385,40 +3367,14 @@ struct EmptyStateView: View {
 
     var body: some View {
         VStack(spacing: 20) {
-            ZStack {
-                // 2-spot layered radial: a bright accent center bloom over a
-                // dimmer accent ring — single-hue depth instead of a flat wash.
-                Circle()
-                    .fill(
-                        RadialGradient(
-                            stops: [
-                                .init(color: Color.appAccent.opacity(0.05), location: 0),
-                                .init(color: Color.appAccent.opacity(0.22), location: 0.78),
-                                .init(color: Color.appAccent.opacity(0.04), location: 1)
-                            ],
-                            center: .center, startRadius: 0, endRadius: 40
-                        )
-                    )
-                    .frame(width: 80, height: 80)
-                    .overlay {
-                        Circle()
-                            .fill(
-                                RadialGradient(
-                                    stops: [
-                                        .init(color: Color.appAccent.opacity(0.34), location: 0),
-                                        .init(color: Color.appAccent.opacity(0.10), location: 0.5),
-                                        .init(color: .clear, location: 1)
-                                    ],
-                                    center: .topLeading, startRadius: 0, endRadius: 64
-                                )
-                            )
-                            .frame(width: 80, height: 80)
-                    }
-                Image(systemName: icon)
-                    .font(.system(size: 32, weight: .medium))
-                    .symbolRenderingMode(.hierarchical)
-                    .foregroundStyle(Color.appAccent)
-            }
+            // Floating empty-state icon badge — native accent-tinted Liquid
+            // Glass circle in place of the hand-rolled 2-spot accent radial.
+            Image(systemName: icon)
+                .font(.system(size: 32, weight: .medium))
+                .symbolRenderingMode(.hierarchical)
+                .foregroundStyle(Color.appAccent)
+                .frame(width: 80, height: 80)
+                .adaptiveGlass(.circle, tint: Color.appAccent)
             VStack(spacing: 8) {
                 Text(title)
                     .font(.system(size: 20, weight: .bold, design: .rounded))
