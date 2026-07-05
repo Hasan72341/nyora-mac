@@ -2596,6 +2596,7 @@ struct SettingsView: View {
                            label: appState.readerPrefs.historyRetentionDays == 0
                                 ? "Forever" : "\(appState.readerPrefs.historyRetentionDays) days")
                 toggleRow("Group by date", description: "Today / Yesterday / Earlier sections.", isOn: $appState.readerPrefs.historyGrouping)
+                toggleRow("Keep 18+ out of history", description: "Adult-tagged manga are never written to reading history.", isOn: $appState.readerPrefs.noNsfwHistory)
                 pickerRow("Sort order", selection: $appState.readerPrefs.historySortOrder) {
                     Text("Last read").tag("last_read")
                     Text("A → Z").tag("alpha")

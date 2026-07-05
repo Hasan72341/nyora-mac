@@ -614,6 +614,13 @@ final class AppState: ObservableObject {
     /// Persist the current reader position to history. Safe to call frequently.
     func persistReaderPosition() async {
         guard !readerMangaId.isEmpty, let chapter = activeChapter else { return }
+        // Keep 18+ out of history: skip writing when the manga (or its source)
+        // is adult-flagged, mirroring the NSFW source-filter detection.
+        if readerPrefs.noNsfwHistory {
+            let mangaIsNsfw = activeMangaDetails?.manga.isNsfw ?? false
+            let sourceIsNsfw = sources.first(where: { $0.id == selectedSourceId })?.isNsfw ?? false
+            if mangaIsNsfw || sourceIsNsfw { return }
+        }
         let pageCount = max(chapter.pages.count, 1)
         let percent = Float(readerPageIndex + 1) / Float(pageCount)
         try? await helper.recordHistory(
