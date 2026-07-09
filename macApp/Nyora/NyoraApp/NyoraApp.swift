@@ -1,7 +1,6 @@
 import SwiftUI
 import AppKit
 import CoreSpotlight
-import GoogleSignIn
 
 @main
 @MainActor
@@ -45,9 +44,6 @@ struct NyoraApp: App {
                     appState.reindexSpotlight()
                 }
                 .onOpenURL { url in
-                    if GIDSignIn.sharedInstance.handle(url) {
-                        return
-                    }
                     appState.handleDeepLink(url)
                 }
                 .onContinueUserActivity(CSSearchableItemActionType) { activity in

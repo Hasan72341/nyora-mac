@@ -3346,7 +3346,7 @@ enum SettingsCategory: String, CaseIterable, Identifiable, Hashable {
         case .network:       return "Network"
         case .downloads:     return "Downloads"
         case .tracker:       return "Tracker"
-        case .sync:          return "Cloud sync"
+        case .sync:          return "Nyora Sync"
         case .backup:        return "Backup & restore"
 
         case .notifications: return "Notifications"
