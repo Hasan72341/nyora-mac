@@ -9,14 +9,11 @@ let package = Package(
     products: [
         .executable(name: "Nyora", targets: ["NyoraApp"]),
     ],
-    dependencies: [
-        .package(url: "https://github.com/google/GoogleSignIn-iOS.git", from: "7.0.0"),
-    ],
+    dependencies: [],
     targets: [
         .executableTarget(
             name: "NyoraApp",
             dependencies: [
-                .product(name: "GoogleSignIn", package: "GoogleSignIn-iOS"),
                 .target(name: "ConcurrencyShim"),
             ],
             path: "Nyora/NyoraApp",

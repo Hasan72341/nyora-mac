@@ -55,7 +55,6 @@ fi
 # Assets.xcassets here and Bundle.module is unreliable in a relocated bundle.
 ASSETS="$ROOT/Nyora/NyoraApp/Assets.xcassets"
 cp -f "$ASSETS/NyoraLogo.imageset/nyora_logo.png" "$APP/Contents/Resources/NyoraLogo.png" 2>/dev/null || true
-cp -f "$ASSETS/GoogleG.imageset/google_g.png" "$APP/Contents/Resources/GoogleG.png" 2>/dev/null || true
 
 # MLX needs `mlx-swift_Cmlx.bundle/Contents/Resources/default.metallib` next
 # to the binary at runtime — but `swift build` (CLI) cannot compile Metal
@@ -74,8 +73,8 @@ if [ -d "$METALLIB_CACHE" ]; then
   cp -R "$METALLIB_CACHE" "$APP/Contents/MacOS/"
 fi
 
-# Use the app's real Info.plist so Launch Services and GoogleSignIn see
-# the same bundle identifier, client ID, and URL callback schemes as release.
+# Use the app's real Info.plist so Launch Services sees the same bundle
+# identifier and URL callback schemes as release.
 cp -f "$ROOT/Nyora/SupportingFiles/Info.plist" "$APP/Contents/Info.plist"
 
 # Entitlements: MLX framework requires JIT (for Metal shader compilation)
