@@ -69,6 +69,11 @@ kotlin {
                 // NOTE: unlike Android (which has org.json built into the platform), the desktop
                 // JVM does not, so org.json must be pulled in (do NOT exclude it here).
                 implementation("com.github.clquwu:kotatsu-parsers-redo:59c033ecfd")
+                // org.json reaches the runtime classpath transitively via kotatsu-parsers-redo,
+                // but as one of that library's `implementation` deps it never lands on OUR compile
+                // classpath — and our own code imports org.json directly. Version pinned to what
+                // the parsers already resolve, so runtime stays single-version.
+                implementation("org.json:json:20240303")
             }
         }
         if (isMacOS) {
