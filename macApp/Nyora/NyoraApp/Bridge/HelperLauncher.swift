@@ -94,12 +94,25 @@ actor HelperLauncher {
            FileManager.default.isExecutableFile(atPath: custom) {
             return URL(fileURLWithPath: custom)
         }
-        // 2. Well-known macOS locations.
+        // 2. The JRE bundled inside the app (Contents/Resources/jre), shipped by
+        //    scripts/build-dmg.sh. This MUST be tried before any system path: a released
+        //    build has to run on a Mac with no JDK installed, and /usr/bin/java below is
+        //    always present as an Apple stub that prompts to install one rather than
+        //    running anything.
+        if let resources = Bundle.main.resourceURL {
+            let bundled = resources.appendingPathComponent("jre/bin/java")
+            if FileManager.default.isExecutableFile(atPath: bundled.path) {
+                return bundled
+            }
+        }
+        // 3. Well-known macOS locations — development fallback, when running outside a
+        //    packaged bundle. /usr/bin/java is deliberately last: it exists even with no
+        //    JDK, so preferring it would shadow a real JVM found further down.
         let candidates = [
-            "/usr/bin/java",                                          // Apple-provided stub (asks to install JDK)
             "/opt/homebrew/opt/openjdk@17/bin/java",                  // Homebrew arm64
             "/usr/local/opt/openjdk@17/bin/java",                     // Homebrew x86_64
             "/Library/Java/JavaVirtualMachines/openjdk-17.jdk/Contents/Home/bin/java",
+            "/usr/bin/java",                                          // Apple stub (asks to install a JDK)
         ]
         for path in candidates where FileManager.default.isExecutableFile(atPath: path) {
             return URL(fileURLWithPath: path)
