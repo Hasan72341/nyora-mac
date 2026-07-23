@@ -161,10 +161,15 @@ final class TrackerOAuth: NSObject, ASWebAuthenticationPresentationContextProvid
     private func presentAuth(url: URL) async throws -> URL {
         try await withCheckedThrowingContinuation { (cont: CheckedContinuation<URL, Error>) in
             let box = OAuthContinuationBox(cont)
+            // The completion handler is invoked by AuthenticationServices on a
+            // background XPC reply queue. Marking it @Sendable keeps it
+            // nonisolated so Swift's runtime does not assert a main-actor
+            // executor here (which SIGTRAPs); we hop back to the main actor
+            // explicitly via the @MainActor Tasks below.
             let session = ASWebAuthenticationSession(
                 url: url,
                 callbackURLScheme: Self.callbackScheme
-            ) { callback, error in
+            ) { @Sendable callback, error in
                 if let error {
                     if (error as? ASWebAuthenticationSessionError)?.code == .canceledLogin {
                         Task { @MainActor in box.resume(.failure(AuthError.cancelled)) }
